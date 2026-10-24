@@ -11,6 +11,7 @@
 </head>
 <body>
 
+<div id="canvasStatus" role="status" aria-live="polite" class="sr-only"></div>
 <div id="loader" role="status"><div><p id="loaderMessage">Opening the archive</p><div id="bar"><i></i></div></div></div>
 
 <div id="stage">
@@ -22,7 +23,7 @@
 <header>
   <div class="brand">ViSiONQUEST</div>
   <span id="userBadge" class="user-chip" style="display:none"></span>
-  <button class="pill" id="importBtn">+ GitHub import</button>
+  <button class="pill" id="importBtn">+ GitHub / File Intake</button>
   <button class="pill accent" id="wbBtn">Skip to Workbench</button>
   <button class="pill" id="signOutBtn" style="display:none">Sign out</button>
 </header>
@@ -66,7 +67,7 @@
 </section>
 
 <section class="chapter center" data-id="descent" data-range="0.468,0.53" aria-label="Doorway and archive entrance">
-  <div style="width:100%;max-width:440px;margin:0 auto">
+  <div style="width:100%;max-width:460px;margin:0 auto">
     <h2 class="s" style="color:var(--dim);margin-bottom:14px">Step inside. The records are kept here.</h2>
     <div id="authPanel" class="auth-card">
       <div class="auth-demo-badge">DEMO MODE · local to this browser</div>
@@ -83,11 +84,60 @@
           <label for="authPassword" id="passwordLabel">Password</label>
           <input type="password" id="authPassword" name="password" autocomplete="current-password" placeholder="••••••••" required>
         </div>
-        <div class="auth-actions">
-          <button type="submit" class="pill accent" id="authSubmitBtn">Sign in</button>
-          <button type="button" class="pill" id="authToggleBtn">Create account</button>
+
+        <!-- Canvas Protocol Doorway Keycards & Action Zones -->
+        <div class="canvas-panel">
+          <div class="canvas-header">
+            <span class="canvas-tag">CANVAS PROTOCOL</span>
+            <small class="canvas-tip">Drag Keycard into Action Zone (or press Space to lift)</small>
+          </div>
+
+          <!-- Draggable Keycards (Active card changes with auth mode) -->
+          <div class="cards-dock" id="authCardsDock">
+            <div id="authAccessCard" class="data-card" draggable="true" tabindex="0" role="button" data-card-type="auth-access" aria-grabbed="false" aria-label="Sign In Keycard. Drag into Enter Archive zone, or press Space to lift.">
+              <div class="card-meta"><span class="card-chip">KEYCARD</span><span class="card-handle" aria-hidden="true">⋮⋮</span></div>
+              <strong class="card-title">Sign In Keycard</strong>
+              <span class="card-hint">Drag into [ Enter Archive ] zone ➔</span>
+            </div>
+
+            <div id="authSignupCard" class="data-card" draggable="true" tabindex="0" role="button" data-card-type="auth-signup" aria-grabbed="false" aria-label="Create Profile Keycard. Drag into Create Profile zone, or press Space to lift." style="display:none">
+              <div class="card-meta"><span class="card-chip">KEYCARD</span><span class="card-handle" aria-hidden="true">⋮⋮</span></div>
+              <strong class="card-title">Create Profile Keycard</strong>
+              <span class="card-hint">Drag into [ Create Profile ] zone ➔</span>
+            </div>
+
+            <div id="authGithubCard" class="data-card" draggable="true" tabindex="0" role="button" data-card-type="auth-github" aria-grabbed="false" aria-label="GitHub OAuth Keycard. Drag into Connect GitHub zone, or press Space to lift." style="display:none">
+              <div class="card-meta"><span class="card-chip">KEYCARD</span><span class="card-handle" aria-hidden="true">⋮⋮</span></div>
+              <strong class="card-title">GitHub OAuth Keycard</strong>
+              <span class="card-hint">Drag into [ Connect GitHub ] zone ➔</span>
+            </div>
+          </div>
+
+          <!-- Matching Action Drop Zones -->
+          <div class="zones-dock" id="authZonesDock">
+            <div id="authEnterZone" class="action-zone" data-action-zone="enter-archive" data-accepts="auth-access" tabindex="0" role="region" aria-label="Action Zone: Enter Archive. Drop Sign In Keycard here.">
+              <span class="zone-badge">ACTION ZONE</span>
+              <strong class="zone-name">ENTER ARCHIVE</strong>
+              <span class="zone-desc">Drop Keycard here to step inside</span>
+            </div>
+
+            <div id="authCreateZone" class="action-zone" data-action-zone="create-profile" data-accepts="auth-signup" tabindex="0" role="region" aria-label="Action Zone: Create Profile. Drop Create Profile Keycard here." style="display:none">
+              <span class="zone-badge">ACTION ZONE</span>
+              <strong class="zone-name">CREATE PROFILE</strong>
+              <span class="zone-desc">Drop Keycard here to create profile</span>
+            </div>
+
+            <div id="authGithubZone" class="action-zone" data-action-zone="connect-github" data-accepts="auth-github" tabindex="0" role="region" aria-label="Action Zone: Connect GitHub. Drop GitHub Keycard here." style="display:none">
+              <span class="zone-badge">ACTION ZONE</span>
+              <strong class="zone-name">CONNECT GITHUB</strong>
+              <span class="zone-desc">Drop Keycard here for OAuth login</span>
+            </div>
+          </div>
         </div>
+
         <div class="auth-links">
+          <button type="button" class="auth-link" id="authToggleBtn">Create account</button>
+          <button type="button" class="auth-link" id="authGithubToggleBtn">GitHub sign in</button>
           <button type="button" class="auth-link" id="authForgotBtn">Forgot password?</button>
           <button type="button" class="auth-link" id="authBackBtn" style="display:none">Back to sign in</button>
         </div>
@@ -112,12 +162,60 @@
 </section>
 
 <section class="chapter right" data-id="triage" data-range="0.682,0.785" aria-label="Revival triage">
-  <div class="panel wide" style="max-width:860px">
-    <h2 class="s">Five paths. Five different outcomes.</h2>
+  <div class="panel wide" style="max-width:880px">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+      <h2 class="s">Five paths. Five different outcomes.</h2>
+      <span class="tag amber">Canvas Protocol Enabled</span>
+    </div>
     <div class="paths" role="tablist" aria-label="Revival paths" id="paths"></div>
     <div class="trigger" id="trigger"></div>
     <div class="pathcard" id="pathcard"></div>
-    <p class="muted" style="margin-top:14px;font-size:13px">Archive the project. Preserve the learning. Choose the next move.</p>
+
+    <!-- Canvas Protocol Triage Section -->
+    <div class="canvas-triage-tray">
+      <div class="triage-source">
+        <span class="canvas-tip">Active Project Record (Draggable Card):</span>
+        <div id="triageProjectCard" class="data-card project-card" draggable="true" tabindex="0" role="button" data-card-type="project-card" aria-grabbed="false" data-project-id="atlas" aria-label="Active Project: Atlas. Drag into any Revival Zone below, or press Space to lift.">
+          <div class="card-meta"><span class="card-chip">RECORD</span><span class="card-handle" aria-hidden="true">⋮⋮</span></div>
+          <strong class="card-title" id="triageCardTitle">▸ Atlas</strong>
+          <span class="card-sub" id="triageCardSub">Paused · TypeScript · 5 hrs</span>
+          <span class="card-hint">Drag into any Revival Zone below ➔</span>
+        </div>
+      </div>
+
+      <div class="revival-zones-grid">
+        <div class="action-zone revival-zone" data-action-zone="revival-continue" data-accepts="project-card" tabindex="0" role="region" aria-label="Revival Zone: Continue. Drop project card to generate checklist.">
+          <span class="zone-badge">PATH 1</span>
+          <strong>CONTINUE</strong>
+          <small>Warm-Boot Checklist</small>
+        </div>
+        <div class="action-zone revival-zone" data-action-zone="revival-restart" data-accepts="project-card" tabindex="0" role="region" aria-label="Revival Zone: Restart. Drop project card to generate V2 blueprint.">
+          <span class="zone-badge">PATH 2</span>
+          <strong>RESTART</strong>
+          <small>V2 Blueprint Card</small>
+        </div>
+        <div class="action-zone revival-zone" data-action-zone="revival-change-idea" data-accepts="project-card" tabindex="0" role="region" aria-label="Revival Zone: Change Idea. Drop project card to open Scope Scalpel.">
+          <span class="zone-badge">PATH 3</span>
+          <strong>CHANGE IDEA</strong>
+          <small>Scope Scalpel Board</small>
+        </div>
+        <div class="action-zone revival-zone" data-action-zone="revival-repurpose" data-accepts="project-card" tabindex="0" role="region" aria-label="Revival Zone: Repurpose. Drop project card to extract assets.">
+          <span class="zone-badge">PATH 4</span>
+          <strong>REPURPOSE</strong>
+          <small>Salvage Yard Collection</small>
+        </div>
+        <div class="action-zone revival-zone" data-action-zone="revival-archive" data-accepts="project-card" tabindex="0" role="region" aria-label="Revival Zone: Archive. Drop project card to write epitaph.">
+          <span class="zone-badge">PATH 5</span>
+          <strong>ARCHIVE</strong>
+          <small>Post-Mortem / Epitaph</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- Interactive Artifact Output Container -->
+    <div id="triageArtifactOutput" class="artifact-container" style="display:none" aria-live="polite"></div>
+
+    <p class="muted" style="margin-top:14px;font-size:13px">Drag the project record into any revival zone to generate and store its persistent artifact.</p>
   </div>
 </section>
 
@@ -125,7 +223,7 @@
   <div class="panel wide">
     <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between">
       <h2 class="s">Atmospheric discovery. Practical execution.</h2>
-      <span class="tag amber">Concept UI, not a live prototype</span>
+      <span class="tag amber">Graveyard Mode</span>
     </div>
     <p class="muted" style="margin:6px 0 16px;text-align:left">One project record, two modes. This room is Graveyard mode: open a dossier, then pick a path, or skip to Workbench. Zero-guilt tone, no “failed” badges.</p>
     <div class="dossier" id="dossierA"></div>
@@ -164,22 +262,195 @@
 </section>
 </main>
 
+<!-- Workbench Modal / High-density Interface -->
 <div id="workbench" role="dialog" aria-modal="true" aria-label="Workbench mode">
   <div class="wb-head">
     <h2>Workbench</h2><span class="tag">High-density triage</span>
     <div class="chips" id="chips"></div>
     <button class="pill" id="wbClose">Back to Graveyard</button>
   </div>
-  <div class="wb-grid">
-    <div>
-      <div class="plist" id="plist"></div>
-      <div class="roulette"><b>Weekend Revival Roulette</b><br><span class="muted">Pick a project by the free time you have.</span>
-        <select id="free" aria-label="Free time"><option value="2">About 2 hours</option><option value="5">Half a day</option><option value="16">A full weekend</option></select>
-        <button class="pill" id="spin" style="margin-top:8px">Pick for me</button><div class="pick" id="pick"></div></div>
+
+  <!-- Workbench Sub-Navigation Bar -->
+  <div class="wb-tabs" role="tablist">
+    <button class="wb-tab on" data-wbtab="records" role="tab" aria-selected="true">Project Records</button>
+    <button class="wb-tab" data-wbtab="intake" role="tab" aria-selected="false">Intake & Import</button>
+    <button class="wb-tab" data-wbtab="notes" role="tab" aria-selected="false">Black Box Notes</button>
+    <button class="wb-tab" data-wbtab="artifacts" id="wbTabArtifacts" role="tab" aria-selected="false">Revival Artifacts</button>
+    <button class="wb-tab" data-wbtab="backup" role="tab" aria-selected="false">Backup & Reset</button>
+  </div>
+
+  <!-- Tab 1: Records & Roulette -->
+  <div class="wb-tab-panel on" id="wbPanelRecords">
+    <div class="wb-grid">
+      <div>
+        <div class="plist" id="plist" aria-label="Saved projects list"></div>
+        <div class="roulette"><b>Weekend Revival Roulette</b><br><span class="muted">Pick a project by the free time you have.</span>
+          <select id="free" aria-label="Free time"><option value="2">About 2 hours</option><option value="5">Half a day</option><option value="16">A full weekend</option></select>
+          <button class="pill" id="spin" style="margin-top:8px">Pick for me</button><div class="pick" id="pick"></div></div>
+      </div>
+      <div class="panel wide" style="max-width:none">
+        <div class="dossier" id="dossierB"></div>
+      </div>
     </div>
-    <div class="panel wide" style="max-width:none"><div class="dossier" id="dossierB"></div></div>
+  </div>
+
+  <!-- Tab 2: Intake & Import (GitHub & Local Files) -->
+  <div class="wb-tab-panel" id="wbPanelIntake">
+    <div class="intake-grid">
+      <!-- Public GitHub Intake Column -->
+      <div class="intake-card">
+        <h3>Public GitHub Repository Import</h3>
+        <p class="muted" style="font-size:13px;margin:6px 0 12px">Fetch public repository metadata, tree structure, and README via GitHub REST API (no auth required).</p>
+        <div class="intake-input-row">
+          <input type="text" id="githubUrlInput" placeholder="e.g. sheldonvibinonmusic/ViSiONQUEST-Code_Variant" aria-label="Public GitHub repository URL or owner/repo">
+          <button class="pill accent" id="githubFetchBtn">Stage Repo</button>
+        </div>
+        <div id="githubFetchStatus" class="intake-status" aria-live="polite"></div>
+
+        <div class="staged-card-slot" id="githubCardSlot">
+          <!-- Populated when repo is staged -->
+        </div>
+      </div>
+
+      <!-- Local File / Folder Intake Column -->
+      <div class="intake-card">
+        <h3>Local File & Folder Intake</h3>
+        <p class="muted" style="font-size:13px;margin:6px 0 12px">Read project files locally with FileReader. Excludes node_modules, .git, and binaries.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+          <label class="pill" for="localFileInput" tabindex="0">Choose Files</label>
+          <input type="file" id="localFileInput" multiple style="display:none">
+          <label class="pill" for="localFolderInput" tabindex="0">Choose Folder</label>
+          <input type="file" id="localFolderInput" webkitdirectory directory multiple style="display:none">
+        </div>
+
+        <!-- Stage Files Action Zone -->
+        <div class="action-zone" id="stageFilesZone" data-action-zone="stage-files" data-accepts="native-files" tabindex="0" role="region" aria-label="Action Zone: Stage Files. Drop local files from desktop here.">
+          <span class="zone-badge">DROP TARGET</span>
+          <strong class="zone-name">STAGE LOCAL FILES</strong>
+          <span class="zone-desc">Drop project files or folders here</span>
+        </div>
+        <div id="fileStageStatus" class="intake-status" aria-live="polite"></div>
+
+        <div class="staged-card-slot" id="fileBatchCardSlot">
+          <!-- Populated when files are staged -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Intake Action Zones -->
+    <div class="intake-action-row">
+      <div class="action-zone" data-action-zone="import-archive" data-accepts="github-repo,file-batch" tabindex="0" role="region" aria-label="Action Zone: Import to Archive. Drop staged GitHub card or file batch card here.">
+        <span class="zone-badge">ACTION ZONE</span>
+        <strong class="zone-name">IMPORT TO ARCHIVE</strong>
+        <span class="zone-desc">Drop staged card here to commit to IndexedDB</span>
+      </div>
+
+      <div class="action-zone" data-action-zone="analyze-project" data-accepts="github-repo,file-batch,project-card" tabindex="0" role="region" aria-label="Action Zone: Analyze Project. Drop staged card or project card here.">
+        <span class="zone-badge">ACTION ZONE</span>
+        <strong class="zone-name">ANALYZE PROJECT STRUCTURE</strong>
+        <span class="zone-desc">Drop card here for deterministic rules-based audit</span>
+      </div>
+    </div>
+
+    <!-- Analysis Report Container -->
+    <div id="analysisReportContainer" class="artifact-container" style="display:none" aria-live="polite"></div>
+  </div>
+
+  <!-- Tab 3: Notes & Black Box -->
+  <div class="wb-tab-panel" id="wbPanelNotes">
+    <div class="notes-grid">
+      <div class="intake-card">
+        <h3>Record a Black Box Note</h3>
+        <p class="muted" style="font-size:13px;margin:6px 0 12px">Document blocker updates, failed tries, or next micro-actions with clear provenance tagging.</p>
+        <div class="auth-field" style="margin-bottom:10px">
+          <label for="noteFieldSelect">Target Passport Field</label>
+          <select id="noteFieldSelect" style="background:#111;color:var(--bone);border:1px solid var(--line);border-radius:8px;padding:8px">
+            <option value="blocker">Active Blocker</option>
+            <option value="failed">Failed Approach</option>
+            <option value="next">Smallest Next Step</option>
+            <option value="vision">Vision vs. Reality</option>
+            <option value="cause">Pause Cause</option>
+          </select>
+        </div>
+        <div class="auth-field" style="margin-bottom:10px">
+          <label for="noteProvenanceSelect">Provenance Tag</label>
+          <select id="noteProvenanceSelect" style="background:#111;color:var(--bone);border:1px solid var(--line);border-radius:8px;padding:8px">
+            <option value="User note">User note (Manual human entry)</option>
+            <option value="Observed">Observed (Direct repo inspection / file fact)</option>
+            <option value="Derived suggestion">Derived suggestion (Rules-based deduction)</option>
+          </select>
+        </div>
+        <div class="auth-field" style="margin-bottom:12px">
+          <label for="noteTextInput">Note Content</label>
+          <textarea id="noteTextInput" rows="3" placeholder="What happened, what was observed, or what should be done next?" style="background:#111;color:var(--bone);border:1px solid var(--line);border-radius:8px;padding:10px;font-family:var(--body);font-size:13px;resize:vertical"></textarea>
+        </div>
+        <button class="pill accent" id="stageNoteBtn">Stage Note Card</button>
+
+        <div class="staged-card-slot" id="noteCardSlot" style="margin-top:14px"></div>
+      </div>
+
+      <div>
+        <div class="action-zone" data-action-zone="save-note" data-accepts="note-card" tabindex="0" role="region" aria-label="Action Zone: Save Note. Drop staged note card here to attach to active project.">
+          <span class="zone-badge">ACTION ZONE</span>
+          <strong class="zone-name">ATTACH NOTE TO PROJECT</strong>
+          <span class="zone-desc">Drop staged note card here to persist to Black Box</span>
+        </div>
+        <div id="projectNotesList" class="notes-feed" style="margin-top:14px" aria-live="polite"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab 4: Revival Artifacts Viewer -->
+  <div class="wb-tab-panel" id="wbPanelArtifacts">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+      <h3>Saved Revival Artifacts</h3>
+      <span class="muted" style="font-size:13px">Stored in IndexedDB (`artifacts` store)</span>
+    </div>
+    <div id="wbArtifactList" class="artifact-container" aria-live="polite"></div>
+  </div>
+
+  <!-- Tab 5: Backup, Export, JSON Import & 2-Step Reset -->
+  <div class="wb-tab-panel" id="wbPanelBackup">
+    <div class="backup-grid">
+      <div class="intake-card">
+        <h3>Export Archive JSON</h3>
+        <p class="muted" style="font-size:13px;margin:6px 0 12px">Download your complete local archive (projects, artifacts, notes, readiness scores) as standard JSON.</p>
+        <div class="action-zone" data-action-zone="export-json" data-accepts="project-card,archive-card" tabindex="0" role="region" aria-label="Action Zone: Export JSON. Drop any card or click to download full archive.">
+          <span class="zone-badge">ACTION ZONE</span>
+          <strong class="zone-name">EXPORT JSON ARCHIVE</strong>
+          <span class="zone-desc">Drop any project card or archive card here</span>
+        </div>
+      </div>
+
+      <div class="intake-card">
+        <h3>Import Archive JSON</h3>
+        <p class="muted" style="font-size:13px;margin:6px 0 12px">Restore or merge an exported JSON archive file into IndexedDB with schema validation.</p>
+        <input type="file" id="jsonFileInput" accept=".json" style="display:none">
+        <div class="action-zone" id="importJsonZone" data-action-zone="import-json" data-accepts="archive-json" tabindex="0" role="region" aria-label="Action Zone: Import JSON. Drop backup JSON file here.">
+          <span class="zone-badge">ACTION ZONE</span>
+          <strong class="zone-name">IMPORT ARCHIVE JSON</strong>
+          <span class="zone-desc">Drop exported .json file here (or click to browse)</span>
+        </div>
+      </div>
+
+      <div class="intake-card" style="border-color:rgba(224,53,47,.35)">
+        <h3 style="color:var(--hot)">Reset Demo Data</h3>
+        <p class="muted" style="font-size:13px;margin:6px 0 12px">Requires a 2-step confirmation drop. Erases local modifications and restores baseline demo projects.</p>
+        <div id="resetKeycard" class="data-card" draggable="true" tabindex="0" role="button" data-card-type="reset-keycard" aria-grabbed="false" aria-label="Reset Keycard. Drag to Reset Demo zone." style="border-color:rgba(224,53,47,.5)">
+          <div class="card-meta"><span class="card-chip" style="background:var(--hot);color:#fff">CAUTION</span><span class="card-handle" aria-hidden="true">⋮⋮</span></div>
+          <strong class="card-title">Reset Demo Keycard</strong>
+          <span class="card-hint">Drag into [ Reset Demo ] zone ➔</span>
+        </div>
+        <div class="action-zone" id="resetDemoZone" data-action-zone="reset-demo" data-accepts="reset-keycard" tabindex="0" role="region" aria-label="Action Zone: Reset Demo. Drop Reset Keycard here twice to confirm." style="margin-top:12px;border-color:rgba(224,53,47,.45)">
+          <span class="zone-badge" style="background:var(--hot);color:#fff">DANGER ZONE</span>
+          <strong class="zone-name" id="resetZoneTitle">RESET DEMO ARCHIVE</strong>
+          <span class="zone-desc" id="resetZoneDesc">Drop Reset Keycard here (Step 1 of 2)</span>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
+
 <div id="toast" role="status"></div>
 
 <script src="app.js" defer></script>
