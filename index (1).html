@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{
   --ink:#050505; --bone:#dcc7b2; --dim:#a79684; --red:#b3201f; --hot:#e0352f;
@@ -82,7 +83,7 @@ p{line-height:1.6;font-size:clamp(14px,1.15vw,16px);color:#e8dccd}
 @media(prefers-reduced-motion:reduce){.st{opacity:1;transform:none;transition:none}}
 
 /* hero: one orchestrated entrance after the loader */
-.hero-sub{font-family:var(--display);font-size:clamp(16px,2vw,26px);margin-top:18px}
+.hero-sub{font-family:var(--display);font-size:clamp(16px,2vw,26px);margin-top:18px;color:var(--hot)}
 .cue{margin-top:30px;font-size:13px;color:var(--dim);display:flex;align-items:center;gap:12px}
 .cue i{width:1px;height:34px;background:linear-gradient(var(--bone),transparent);transform-origin:top;animation:drip 2s var(--ease) infinite}
 @keyframes drip{0%{transform:scaleY(0)}60%{transform:scaleY(1);opacity:1}100%{transform:scaleY(1);opacity:0}}
@@ -180,6 +181,29 @@ body.go .in{animation:rise 1s var(--ease) forwards;animation-delay:calc(var(--d,
 #loader p{font-family:var(--display);font-size:18px;margin-bottom:14px}
 #bar{width:220px;height:3px;background:rgba(220,199,178,.2);border-radius:2px;overflow:hidden;margin:0 auto}
 #bar i{display:block;height:100%;width:0;background:var(--amber);transition:width .3s}
+
+/* auth panel */
+.auth-card{background:var(--glass);border:1px solid var(--line);border-radius:18px;padding:clamp(18px,2.6vw,28px);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);max-width:420px;width:100%;margin:16px auto 0;text-align:left;box-shadow:0 12px 36px rgba(0,0,0,.5)}
+.auth-eyebrow{font-size:11px;font-weight:600;letter-spacing:1.5px;color:var(--amber);display:block;margin-bottom:6px}
+.auth-heading{font-family:var(--display);font-size:clamp(19px,2.2vw,25px);color:var(--bone);margin-bottom:6px;font-weight:400}
+.auth-sub{font-size:13px;color:var(--dim);line-height:1.5;margin-bottom:16px}
+.auth-form{display:grid;gap:11px}
+.auth-field{display:grid;gap:5px}
+.auth-field label{font-size:12px;font-weight:500;color:var(--bone)}
+.auth-field input{background:rgba(0,0,0,.55);border:1px solid var(--line);border-radius:8px;padding:9px 12px;color:var(--bone);font-family:var(--body);font-size:13.5px;transition:border-color .2s}
+.auth-field input:focus{outline:none;border-color:var(--amber);box-shadow:0 0 0 1px var(--amber)}
+.auth-field input::placeholder{color:rgba(167,150,132,.5)}
+.auth-actions{margin-top:4px;display:grid;gap:8px}
+.auth-actions button{width:100%;padding:9px;text-align:center}
+.auth-links{display:flex;justify-content:space-between;align-items:center;font-size:12px;margin-top:2px}
+.auth-link{color:var(--dim);text-decoration:none;transition:color .2s;background:none;border:0;padding:0;font:inherit;cursor:pointer}
+.auth-link:hover{color:var(--bone)}
+.auth-msg{font-size:12.5px;line-height:1.45;margin-top:10px;padding:10px 12px;border-radius:8px;display:none}
+.auth-msg.error{display:block;background:rgba(179,32,31,.2);border:1px solid rgba(224,53,47,.45);color:#ff9e9a}
+.auth-msg.info{display:block;background:rgba(243,199,74,.15);border:1px solid rgba(243,199,74,.4);color:var(--amber)}
+.auth-msg.success{display:block;background:rgba(214,218,180,.15);border:1px solid rgba(214,218,180,.4);color:var(--olive)}
+.user-chip{font-size:12px;color:var(--dim);border:1px solid var(--line);border-radius:99px;padding:6px 12px;background:var(--glass)}
 </style>
 </head>
 <body>
@@ -194,8 +218,10 @@ body.go .in{animation:rise 1s var(--ease) forwards;animation-delay:calc(var(--d,
 <div id="progress"><i></i></div>
 <header>
   <div class="brand">ViSiONQUEST</div>
+  <span id="userBadge" class="user-chip" style="display:none"></span>
   <button class="pill" id="importBtn">+ GitHub import</button>
   <button class="pill accent" id="wbBtn">Skip to Workbench</button>
+  <button class="pill" id="signOutBtn" style="display:none">Sign out</button>
 </header>
 <div id="rail" aria-label="Chapter progress"></div>
 
@@ -206,7 +232,7 @@ body.go .in{animation:rise 1s var(--ease) forwards;animation-delay:calc(var(--d,
   <div>
     <h1 class="in" style="--d:0">The Project<br>Graveyard</h1>
     <p class="hero-sub in" style="--d:2">Remember. Recover. Reuse.</p>
-    <p class="lede in" style="--d:3;max-width:32em">A home for unfinished projects—so you can remember what you were building, why you paused, and where to begin again.</p>
+    <p class="lede in" style="--d:3;max-width:32em">A home for unfinished projects—so you can remember what you were building, why you paused, and <span style="color:var(--amber)">where to begin again.</span></p>
     <div class="cue in" style="--d:4"><i></i>Scroll to go down the stairs</div>
   </div>
 </section>
@@ -236,8 +262,35 @@ body.go .in{animation:rise 1s var(--ease) forwards;animation-delay:calc(var(--d,
   </div>
 </section>
 
-<section class="chapter center" data-id="descent" data-range="0.468,0.53" aria-label="Transition">
-  <h2 class="s" style="color:var(--dim)">Step inside. The records are kept here.</h2>
+<section class="chapter center" data-id="descent" data-range="0.468,0.53" aria-label="Doorway and archive entrance">
+  <div style="width:100%;max-width:440px;margin:0 auto">
+    <h2 class="s" style="color:var(--dim);margin-bottom:14px">Step inside. The records are kept here.</h2>
+    <div id="authPanel" class="auth-card">
+      <span class="auth-eyebrow" id="authEyebrow">YOUR ARCHIVE AWAITS</span>
+      <h3 class="auth-heading" id="authHeading">Your work is waiting.</h3>
+      <p class="auth-sub" id="authSub">Sign in to return to your archive, or create an account to begin preserving your work.</p>
+
+      <form id="authForm" class="auth-form" onsubmit="return false;">
+        <div class="auth-field" id="emailField">
+          <label for="authEmail">Email address</label>
+          <input type="email" id="authEmail" name="email" autocomplete="email" placeholder="you@example.com" required>
+        </div>
+        <div class="auth-field" id="passwordField">
+          <label for="authPassword" id="passwordLabel">Password</label>
+          <input type="password" id="authPassword" name="password" autocomplete="current-password" placeholder="••••••••" required>
+        </div>
+        <div class="auth-actions">
+          <button type="submit" class="pill accent" id="authSubmitBtn">Sign in</button>
+          <button type="button" class="pill" id="authToggleBtn">Create account</button>
+        </div>
+        <div class="auth-links">
+          <button type="button" class="auth-link" id="authForgotBtn">Forgot password?</button>
+          <button type="button" class="auth-link" id="authBackBtn" style="display:none">Back to sign in</button>
+        </div>
+        <div id="authMsg" class="auth-msg" role="status" aria-live="polite"></div>
+      </form>
+    </div>
+  </div>
 </section>
 
 <section class="chapter center" data-id="model" data-range="0.555,0.665" aria-label="Product model">
@@ -417,7 +470,283 @@ $("#spin").onclick = () => {
   $("#pick").textContent = `Try ${p.name}: ${p.next}.`; cur = p; filt="All";
   $$("#chips button").forEach(x=>x.setAttribute("aria-pressed", x.dataset.v==="All")); drawWB();
 };
-$("#importBtn").onclick = () => toast("GitHub import is part of the concept UI. It isn't connected in this build.");
+/* ---------- Supabase Auth & Session Gate ---------- */
+const SUPABASE_CONFIG = {
+  url: window.__ENV?.SUPABASE_URL || "https://your-project.supabase.co",
+  anonKey: window.__ENV?.SUPABASE_ANON_KEY || "your-anon-key"
+};
+
+const isSupabaseConfigured = () => {
+  return SUPABASE_CONFIG.url &&
+    SUPABASE_CONFIG.anonKey &&
+    !SUPABASE_CONFIG.url.includes("your-project") &&
+    !SUPABASE_CONFIG.anonKey.includes("your-anon-key");
+};
+
+let sbClient = null;
+function getSupabase() {
+  if (sbClient) return sbClient;
+  if (window.supabase && isSupabaseConfigured()) {
+    try {
+      sbClient = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+    } catch (e) {
+      console.warn("Supabase initialization error:", e);
+    }
+  }
+  return sbClient;
+}
+
+const authState = {
+  user: null,
+  authenticated: false,
+  mode: "signin",
+  videoAdvancing: false,
+  inRoom: false
+};
+
+const authForm = $("#authForm");
+const authEmail = $("#authEmail");
+const authPassword = $("#authPassword");
+const passwordLabel = $("#passwordLabel");
+const passwordField = $("#passwordField");
+const emailField = $("#emailField");
+const authSubmitBtn = $("#authSubmitBtn");
+const authToggleBtn = $("#authToggleBtn");
+const authForgotBtn = $("#authForgotBtn");
+const authBackBtn = $("#authBackBtn");
+const authMsg = $("#authMsg");
+const authEyebrow = $("#authEyebrow");
+const authHeading = $("#authHeading");
+const authSub = $("#authSub");
+const userBadge = $("#userBadge");
+const signOutBtn = $("#signOutBtn");
+
+function setAuthMessage(text, type = "info") {
+  if (!text) {
+    authMsg.className = "auth-msg";
+    authMsg.textContent = "";
+    authMsg.style.display = "none";
+    return;
+  }
+  authMsg.className = `auth-msg ${type}`;
+  authMsg.textContent = text;
+  authMsg.style.display = "block";
+}
+
+function setAuthMode(mode) {
+  authState.mode = mode;
+  setAuthMessage("");
+  if (mode === "signin") {
+    authEyebrow.textContent = "YOUR ARCHIVE AWAITS";
+    authHeading.textContent = "Your work is waiting.";
+    authSub.textContent = "Sign in to return to your archive, or create an account to begin preserving your work.";
+    emailField.style.display = "grid";
+    passwordField.style.display = "grid";
+    passwordLabel.textContent = "Password";
+    authPassword.autocomplete = "current-password";
+    authSubmitBtn.textContent = "Sign in";
+    authToggleBtn.style.display = "block";
+    authToggleBtn.textContent = "Create account";
+    authForgotBtn.style.display = "inline-block";
+    authBackBtn.style.display = "none";
+  } else if (mode === "signup") {
+    authEyebrow.textContent = "YOUR ARCHIVE AWAITS";
+    authHeading.textContent = "Start preserving your work.";
+    authSub.textContent = "Create an account to begin recording what you built, why you paused, and what to do next.";
+    emailField.style.display = "grid";
+    passwordField.style.display = "grid";
+    passwordLabel.textContent = "Create password";
+    authPassword.autocomplete = "new-password";
+    authSubmitBtn.textContent = "Create account";
+    authToggleBtn.style.display = "block";
+    authToggleBtn.textContent = "Already have an account? Sign in";
+    authForgotBtn.style.display = "none";
+    authBackBtn.style.display = "none";
+  } else if (mode === "forgot") {
+    authEyebrow.textContent = "RESET PASSWORD";
+    authHeading.textContent = "Recover your access.";
+    authSub.textContent = "Enter your email address and we'll send you a link to reset your password.";
+    emailField.style.display = "grid";
+    passwordField.style.display = "none";
+    authSubmitBtn.textContent = "Send reset link";
+    authToggleBtn.style.display = "none";
+    authForgotBtn.style.display = "none";
+    authBackBtn.style.display = "inline-block";
+  } else if (mode === "recovery") {
+    authEyebrow.textContent = "UPDATE PASSWORD";
+    authHeading.textContent = "Set a new password.";
+    authSub.textContent = "Enter your new password below to secure your archive.";
+    emailField.style.display = "none";
+    passwordField.style.display = "grid";
+    passwordLabel.textContent = "New password";
+    authPassword.autocomplete = "new-password";
+    authSubmitBtn.textContent = "Update password";
+    authToggleBtn.style.display = "none";
+    authForgotBtn.style.display = "none";
+    authBackBtn.style.display = "none";
+  }
+}
+
+if (authToggleBtn) authToggleBtn.onclick = () => setAuthMode(authState.mode === "signin" ? "signup" : "signin");
+if (authForgotBtn) authForgotBtn.onclick = () => setAuthMode("forgot");
+if (authBackBtn) authBackBtn.onclick = () => setAuthMode("signin");
+
+async function handleAuthSubmit() {
+  const email = authEmail?.value.trim() || "";
+  const password = authPassword?.value || "";
+  setAuthMessage("");
+
+  const sb = getSupabase();
+  if (!sb) {
+    setAuthMessage(
+      "Supabase configuration required. Set your Supabase URL and Anon Key in Vercel environment variables or project config.",
+      "info"
+    );
+    return;
+  }
+
+  authSubmitBtn.disabled = true;
+  const originalText = authSubmitBtn.textContent;
+  authSubmitBtn.textContent = "Processing…";
+
+  try {
+    if (authState.mode === "signin") {
+      const { data, error } = await sb.auth.signInWithPassword({ email, password });
+      if (error) {
+        setAuthMessage(error.message, "error");
+      } else if (data?.session) {
+        onAuthSuccess(data.session, false);
+      }
+    } else if (authState.mode === "signup") {
+      const { data, error } = await sb.auth.signUp({ email, password });
+      if (error) {
+        setAuthMessage(error.message, "error");
+      } else if (data?.session) {
+        onAuthSuccess(data.session, false);
+      } else {
+        setAuthMessage("Account created! Please check your email inbox to confirm your account before signing in.", "success");
+      }
+    } else if (authState.mode === "forgot") {
+      const { error } = await sb.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin + window.location.pathname
+      });
+      if (error) {
+        setAuthMessage(error.message, "error");
+      } else {
+        setAuthMessage("Password reset email sent. Please check your inbox.", "success");
+      }
+    } else if (authState.mode === "recovery") {
+      const { error } = await sb.auth.updateUser({ password });
+      if (error) {
+        setAuthMessage(error.message, "error");
+      } else {
+        setAuthMessage("Password updated successfully. Stepping inside…", "success");
+        setTimeout(() => {
+          setAuthMode("signin");
+          enterArchiveRoom();
+        }, 1200);
+      }
+    }
+  } catch (err) {
+    setAuthMessage(err.message || "An unexpected network error occurred.", "error");
+  } finally {
+    authSubmitBtn.disabled = false;
+    authSubmitBtn.textContent = originalText;
+  }
+}
+if (authForm) authForm.onsubmit = e => { e.preventDefault(); handleAuthSubmit(); };
+
+function onAuthSuccess(session, isRestored) {
+  authState.user = session.user;
+  authState.authenticated = true;
+  updateAuthHeader();
+
+  if (isRestored) {
+    authState.inRoom = true;
+    try { video.currentTime = T_END; } catch(_) {}
+    toast(`Welcome back, ${session.user.email}`);
+  } else {
+    setAuthMessage("Session verified. Stepping inside the archive…", "success");
+    setTimeout(enterArchiveRoom, 600);
+  }
+}
+
+function updateAuthHeader() {
+  if (authState.authenticated && authState.user) {
+    if (userBadge) {
+      userBadge.textContent = authState.user.email.split("@")[0];
+      userBadge.style.display = "inline-block";
+    }
+    if (signOutBtn) signOutBtn.style.display = "inline-block";
+  } else {
+    if (userBadge) userBadge.style.display = "none";
+    if (signOutBtn) signOutBtn.style.display = "none";
+  }
+}
+
+async function handleSignOut() {
+  const sb = getSupabase();
+  if (sb) {
+    await sb.auth.signOut();
+  }
+  authState.user = null;
+  authState.authenticated = false;
+  authState.inRoom = false;
+  authState.videoAdvancing = false;
+  updateAuthHeader();
+  setAuthMode("signin");
+  toast("Signed out of your archive.");
+  goTo("hero");
+  try { video.currentTime = 0; } catch(_) {}
+}
+if (signOutBtn) signOutBtn.onclick = handleSignOut;
+
+function enterArchiveRoom() {
+  authState.videoAdvancing = true;
+  try {
+    video.currentTime = T_DOORWAY;
+    const p = video.play();
+    if (p) p.catch(() => {
+      authState.videoAdvancing = false;
+      authState.inRoom = true;
+      onEnteredRoom();
+    });
+  } catch(_) {
+    authState.videoAdvancing = false;
+    authState.inRoom = true;
+    onEnteredRoom();
+  }
+}
+
+function onEnteredRoom() {
+  authState.inRoom = true;
+  try { video.currentTime = T_END; } catch(_) {}
+  toast("Welcome to your archive.");
+  goTo("model");
+}
+
+/* Guarded header & workbench interactions */
+$("#importBtn").onclick = () => {
+  if (!authState.authenticated) {
+    toast("Please sign in to connect your GitHub repositories.");
+    goTo("descent");
+    setTimeout(() => authEmail?.focus(), 500);
+    return;
+  }
+  toast("GitHub connection will be configured in Step 2.");
+};
+
+function guardedOpenWB() {
+  if (!authState.authenticated) {
+    toast("Sign in required to access the Workbench.");
+    goTo("descent");
+    setTimeout(() => authEmail?.focus(), 500);
+    return;
+  }
+  openWB();
+}
+$("#wbBtn").onclick = guardedOpenWB;
+$("#wbBtn2").onclick = guardedOpenWB;
 
 /* ---------- chapters + scrubbing ---------- */
 const video = $("#journey"), dim = $("#dim"), tint = $("#tint"), progress = $("#progress i");
@@ -428,20 +757,41 @@ const rail = $("#rail");
 railItems.forEach(([id,label]) => { const b = document.createElement("button"); b.dataset.go = id; b.innerHTML = `<i></i><span>${label}</span>`; b.setAttribute("aria-label", label); rail.appendChild(b); });
 const railBtns = $$("#rail button");
 
-/* scroll position -> video time.
-   Footage plays 0s -> 5s (hallway, doorway of the first room), then one hard cut to 16s
-   (inside the room) and plays on to the end. The 11s in between is never shown. */
-const CUT = .5, T_OUT = 5, T_IN = 16, T_END = 18.74;
-function vt(p){ return p < CUT ? T_OUT * clamp(p/.49) : T_IN + (T_END - T_IN) * clamp((p - CUT)/(1 - CUT)); }
+/*
+  Timeline mapping:
+  - 0s to 15.10s: Corridor journey down the stairs and through the hallway up to the doorway.
+  - 15.10s: Paused right outside the open doorway facing into the room (authentication gate).
+  - Post-authentication: The video resumes from 15.10s through the doorway into the room,
+    settling on the tabletop with project dossiers at 18.74s.
+*/
+const T_DOORWAY = 15.10, T_END = 18.74, P_GATE = 0.50;
+function vt(p){
+  if (authState.inRoom) return T_END;
+  return p < P_GATE ? T_DOORWAY * clamp(p / (P_GATE - 0.01)) : T_DOORWAY;
+}
 
 const mid = id => { const c = chapters.find(c=>c.id===id); const b = Math.min(c.b, 1); return Math.max(c.a,0) + (b - Math.max(c.a,0)) * .35; };
 const maxScroll = () => document.documentElement.scrollHeight - innerHeight;
-function goTo(id){ scrollTo({top: mid(id)*maxScroll(), behavior: reduce ? "auto":"smooth"}); }
+function goTo(id){
+  const gateIds = ["model", "triage", "modes", "trust"];
+  if (!authState.authenticated && gateIds.includes(id)) {
+    toast("Sign in at the doorway to unlock this archive section.");
+    goTo("descent");
+    return;
+  }
+  scrollTo({top: mid(id)*maxScroll(), behavior: reduce ? "auto":"smooth"});
+}
 document.addEventListener("click", e => { const t = e.target.closest("[data-go]"); if(t) goTo(t.dataset.go); });
 $("#topBtn").onclick = () => scrollTo({top:0, behavior:"smooth"});
 
 let target = 0, shown = 0, dur = 0, ready = false, videoAvailable = false;
-function onScroll(){ target = clamp(scrollY / Math.max(1, maxScroll())); }
+function onScroll(){
+  let raw = scrollY / Math.max(1, maxScroll());
+  if (!authState.authenticated && raw > P_GATE) {
+    raw = P_GATE;
+  }
+  target = clamp(raw);
+}
 addEventListener("scroll", onScroll, {passive:true}); addEventListener("resize", onScroll);
 
 function update(p){
@@ -454,23 +804,29 @@ function update(p){
     c.el.classList.toggle("live", v > .55);
     if(v > best){ best = v; active = c.id; }
   });
-  /* the cut: push in, dip to black, land inside the room and settle back out */
-  const d = Math.abs(p - CUT), bump = 1 - smooth(d/.09);
-  dim.style.opacity = (smooth(1 - d/.035) * .96).toFixed(3);
-  const room = smooth((p - CUT)/.12);
-  tint.style.background = `rgb(${216-(216-70)*room|0},${146-(146-120)*room|0},${58+(200-58)*room|0})`;
-  tint.style.opacity = (.26 + .1*bump).toFixed(3);
+
+  /* Keep doorway scene clearly visible at the gate without artificial black dips */
+  dim.style.opacity = "0";
+  tint.style.opacity = ".26";
   progress.style.transform = `scaleX(${p.toFixed(4)})`;
-  vz = 1.03 + .13*bump; vb = bump*3.5;
   railBtns.forEach(b => b.classList.toggle("on", b.dataset.go === active));
 }
 let last = performance.now();
 function frame(now){
   const dt = Math.min(.05, (now - last)/1000 || .016); last = now;
-  /* ~85ms time constant: frame-rate independent and noticeably snappier than before */
   shown += (target - shown) * (reduce ? 1 : 1 - Math.exp(-dt/.085));
   if(Math.abs(target-shown) < .0002) shown = target;
-  if(ready && videoAvailable && dur){
+
+  if (authState.videoAdvancing) {
+    /* Natural playback transitioning through doorway into the room */
+    if (video.currentTime >= T_END - 0.08 || video.ended) {
+      video.pause();
+      try { video.currentTime = T_END; } catch(_) {}
+      authState.videoAdvancing = false;
+      authState.inRoom = true;
+      onEnteredRoom();
+    }
+  } else if(ready && videoAvailable && dur){
     const t = Math.min(vt(shown), dur - .05);
     if(!video.seeking && Math.abs(video.currentTime - t) > .008){
       try { video.currentTime = t; } catch(_) { /* Keep the interface responsive if seeking is unsupported. */ }
@@ -490,6 +846,39 @@ chapters.filter(c => c.id !== "hero").forEach(c => {
   $$(".veil > *, .panel > *, .losses > div, .cols > .box, .model > .box, .dossier > *, .paths button", c.el)
     .forEach((el,i) => { el.classList.add("st"); el.style.setProperty("--i", Math.min(i, 8)); });
 });
+
+/* Session restoration & recovery listener */
+async function checkInitialSession() {
+  const sb = getSupabase();
+  if (sb) {
+    try {
+      const { data: { session } } = await sb.auth.getSession();
+      if (session?.user) {
+        onAuthSuccess(session, true);
+      }
+      sb.auth.onAuthStateChange((event, session) => {
+        if (event === "SIGNED_IN" && session?.user) {
+          onAuthSuccess(session, false);
+        } else if (event === "SIGNED_OUT") {
+          authState.user = null;
+          authState.authenticated = false;
+          authState.inRoom = false;
+          updateAuthHeader();
+        } else if (event === "PASSWORD_RECOVERY") {
+          setAuthMode("recovery");
+          goTo("descent");
+        }
+      });
+    } catch (e) {
+      console.warn("Session check error:", e);
+    }
+  }
+  if (window.location.hash.includes("type=recovery")) {
+    setAuthMode("recovery");
+    goTo("descent");
+  }
+}
+checkInitialSession();
 
 /* ---------- portable video loading ---------- */
 const bar = $("#bar i");
@@ -602,6 +991,7 @@ videoStartupTimer = setTimeout(() => {
 
 loadNextVideoSource();
 requestAnimationFrame(frame);
+window.__PG_STEP1__ = { vt, authState, T_DOORWAY, T_END, P_GATE };
 })();
 </script>
 </body>
