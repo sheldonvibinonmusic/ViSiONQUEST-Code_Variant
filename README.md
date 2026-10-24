@@ -52,7 +52,7 @@ The first phase establishes the opening narrative sequence up to the archive doo
 ## Project Structure
 
 ```text
-├── index(1).html     # Semantic markup and structure
+├── index.html        # Semantic markup and structure
 ├── styles.css        # Visual system, cinematic shaders, and responsive rules
 ├── app.js            # Video engine, scroll sync, chapter rail, and demo state
 ├── journey.mp4       # Archival camera footage mapped to scroll
@@ -73,4 +73,4 @@ python -m http.server 8000
 npx serve .
 ```
 
-Navigate to `http://localhost:8000/index(1).html` in any modern web browser.
+Navigate to `http://localhost:8000/` in any modern web browser.

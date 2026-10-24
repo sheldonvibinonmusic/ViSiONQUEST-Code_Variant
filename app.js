@@ -89,7 +89,152 @@ $("#spin").onclick = () => {
   $("#pick").textContent = `Try ${p.name}: ${p.next}.`; cur = p; filt="All";
   $$("#chips button").forEach(x=>x.setAttribute("aria-pressed", x.dataset.v==="All")); drawWB();
 };
-/* ---------- Doorway Auth Panel (Demo Interim) ---------- */
+/* ---------- Stage 2: Local Demo Mode & Timeline Engine ---------- */
+
+/*
+  Original Timeline Specification:
+  - CUT = 0.5: Doorway authentication gate scroll threshold.
+  - T_OUT = 5: Pause video frame at the doorway gate (5.0s).
+  - T_IN = 16: Doorway room entry frame jumped to upon successful authentication (16.0s).
+  - T_END = 18.74: Final resting frame showing tabletop dossiers (18.74s).
+
+  Editorial cut: Seconds 5–16 are intentionally never played or scrubbed through.
+*/
+const CUT = 0.5, T_OUT = 5, T_IN = 16, T_END = 18.74;
+
+/* ---------- Local Demo Storage & Cryptography ---------- */
+const STORAGE_KEYS = {
+  PROFILES: "pg_demo_profiles_v1",
+  SESSION: "pg_demo_session_v1"
+};
+
+let inMemoryProfiles = {};
+let inMemorySession = null;
+
+function getStoredProfiles() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.PROFILES);
+    return raw ? JSON.parse(raw) : inMemoryProfiles;
+  } catch (e) {
+    console.warn("Storage read error, using in-memory demo profiles:", e);
+    return inMemoryProfiles;
+  }
+}
+
+function saveStoredProfiles(profiles) {
+  inMemoryProfiles = profiles;
+  try {
+    localStorage.setItem(STORAGE_KEYS.PROFILES, JSON.stringify(profiles));
+  } catch (e) {
+    console.warn("Storage write error for demo profiles:", e);
+  }
+}
+
+function getStoredSession() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.SESSION);
+    return raw ? JSON.parse(raw) : inMemorySession;
+  } catch (e) {
+    console.warn("Storage read error, using in-memory demo session:", e);
+    return inMemorySession;
+  }
+}
+
+function saveStoredSession(session) {
+  inMemorySession = session;
+  try {
+    if (session) {
+      localStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(session));
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.SESSION);
+    }
+  } catch (e) {
+    console.warn("Storage write error for demo session:", e);
+  }
+}
+
+function clearDemoSession() {
+  saveStoredSession(null);
+}
+
+// NOTE: Web Crypto salted hashing is used for browser-local demo mode only.
+// This is not production-grade server authentication.
+async function hashDemoPassword(password, salt) {
+  try {
+    const enc = new TextEncoder();
+    const data = enc.encode(`${salt}:${password}`);
+    const digest = await crypto.subtle.digest("SHA-256", data);
+    return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, "0")).join("");
+  } catch (e) {
+    let hash = 0;
+    const str = `${salt}:${password}`;
+    for (let i = 0; i < str.length; i++) {
+      hash = ((hash << 5) - hash) + str.charCodeAt(i);
+      hash |= 0;
+    }
+    return Math.abs(hash).toString(16).padStart(16, "0");
+  }
+}
+
+function generateDemoSalt() {
+  try {
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes).map(b => b.toString(16).padStart(2, "0")).join("");
+  } catch (_) {
+    return Math.random().toString(36).substring(2) + Date.now().toString(36);
+  }
+}
+
+/* ---------- Optional Owner Email Notification (EmailJS) ---------- */
+// EmailJS is an optional notification tool, NOT an authentication provider.
+// If left blank, the app functions 100% offline in local Demo Mode.
+const EMAIL_NOTIFICATION_CONFIG = {
+  publicKey: "",   // Optional: Owner's EmailJS public key
+  serviceId: "",   // Optional: EmailJS service ID connected to owner's Gmail
+  templateId: ""   // Optional: EmailJS notification template ID
+};
+
+async function sendDemoEmailNotification(eventType, email) {
+  const { publicKey, serviceId, templateId } = EMAIL_NOTIFICATION_CONFIG;
+  if (!publicKey || !serviceId || !templateId) {
+    console.info("Email notifications not configured; demo continues locally.");
+    return { sent: false, reason: "not_configured" };
+  }
+
+  try {
+    const payload = {
+      service_id: serviceId,
+      template_id: templateId,
+      user_id: publicKey,
+      template_params: {
+        event_type: eventType,
+        user_email: email,
+        timestamp: new Date().toISOString(),
+        mode: "Demo Mode (local)"
+      }
+    };
+
+    const res = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    if (res.ok) {
+      return { sent: true };
+    } else {
+      const errTxt = await res.text();
+      console.warn("EmailJS notification failed:", res.status, errTxt);
+      return { sent: false, reason: "failed", error: errTxt };
+    }
+  } catch (err) {
+    console.warn("EmailJS network error:", err.message);
+    return { sent: false, reason: "network_error", error: err.message };
+  }
+}
+
+/* ---------- Doorway Auth Panel & Session State ---------- */
 const authState = {
   user: null,
   authenticated: false,
@@ -133,11 +278,12 @@ function setAuthMode(mode) {
   if (mode === "signin") {
     authEyebrow.textContent = "YOUR ARCHIVE AWAITS";
     authHeading.textContent = "Your work is waiting.";
-    authSub.textContent = "Sign in to return to your archive, or create an account to begin preserving your work.";
+    authSub.textContent = "Sign in with a demo profile stored in this browser, or create a new profile.";
     emailField.style.display = "grid";
     passwordField.style.display = "grid";
     passwordLabel.textContent = "Password";
     authPassword.autocomplete = "current-password";
+    authSubmitBtn.style.display = "block";
     authSubmitBtn.textContent = "Sign in";
     authToggleBtn.style.display = "block";
     authToggleBtn.textContent = "Create account";
@@ -146,38 +292,27 @@ function setAuthMode(mode) {
   } else if (mode === "signup") {
     authEyebrow.textContent = "YOUR ARCHIVE AWAITS";
     authHeading.textContent = "Start preserving your work.";
-    authSub.textContent = "Create an account to begin recording what you built, why you paused, and what to do next.";
+    authSub.textContent = "Create a local demo profile to begin recording what you built, why you paused, and what to do next.";
     emailField.style.display = "grid";
     passwordField.style.display = "grid";
     passwordLabel.textContent = "Create password";
     authPassword.autocomplete = "new-password";
+    authSubmitBtn.style.display = "block";
     authSubmitBtn.textContent = "Create account";
     authToggleBtn.style.display = "block";
     authToggleBtn.textContent = "Already have an account? Sign in";
     authForgotBtn.style.display = "none";
     authBackBtn.style.display = "none";
   } else if (mode === "forgot") {
-    authEyebrow.textContent = "RESET PASSWORD";
-    authHeading.textContent = "Recover your access.";
-    authSub.textContent = "Enter your email address and we'll send you a link to reset your password.";
-    emailField.style.display = "grid";
+    authEyebrow.textContent = "DEMO ACCESS RECOVERY";
+    authHeading.textContent = "Local demo recovery.";
+    authSub.textContent = "Password recovery is unavailable in browser-local Demo Mode. To start fresh, create a new demo profile with another email address.";
+    emailField.style.display = "none";
     passwordField.style.display = "none";
-    authSubmitBtn.textContent = "Send reset link";
+    authSubmitBtn.style.display = "none";
     authToggleBtn.style.display = "none";
     authForgotBtn.style.display = "none";
     authBackBtn.style.display = "inline-block";
-  } else if (mode === "recovery") {
-    authEyebrow.textContent = "UPDATE PASSWORD";
-    authHeading.textContent = "Set a new password.";
-    authSub.textContent = "Enter your new password below to secure your archive.";
-    emailField.style.display = "none";
-    passwordField.style.display = "grid";
-    passwordLabel.textContent = "New password";
-    authPassword.autocomplete = "new-password";
-    authSubmitBtn.textContent = "Update password";
-    authToggleBtn.style.display = "none";
-    authForgotBtn.style.display = "none";
-    authBackBtn.style.display = "none";
   }
 }
 
@@ -185,33 +320,113 @@ if (authToggleBtn) authToggleBtn.onclick = () => setAuthMode(authState.mode === 
 if (authForgotBtn) authForgotBtn.onclick = () => setAuthMode("forgot");
 if (authBackBtn) authBackBtn.onclick = () => setAuthMode("signin");
 
-function handleAuthSubmit() {
-  setAuthMessage(
-    "Live authentication has been removed for the local demo setup. The demo account flow will be implemented in the next stage. No account has been created.",
-    "info"
-  );
+async function handleAuthSubmit() {
+  const email = (authEmail?.value || "").trim().toLowerCase();
+  const password = authPassword?.value || "";
+  setAuthMessage("");
+
+  if (authState.mode === "forgot") {
+    setAuthMessage(
+      "Password recovery is not available in browser-local Demo Mode. You can create a new demo profile with another email.",
+      "info"
+    );
+    return;
+  }
+
+  // Validate inputs
+  if (!email || !email.includes("@") || !email.includes(".")) {
+    setAuthMessage("Please enter a valid email address.", "error");
+    authEmail?.focus();
+    return;
+  }
+
+  if (!password || password.length < 6) {
+    setAuthMessage("Password must be at least 6 characters long.", "error");
+    authPassword?.focus();
+    return;
+  }
+
+  authSubmitBtn.disabled = true;
+  const originalText = authSubmitBtn.textContent;
+  authSubmitBtn.textContent = "Verifying…";
+
+  try {
+    const profiles = getStoredProfiles();
+
+    if (authState.mode === "signup") {
+      if (profiles[email]) {
+        setAuthMessage("A demo profile with this email already exists on this browser. Please sign in.", "error");
+        return;
+      }
+
+      const salt = generateDemoSalt();
+      const hash = await hashDemoPassword(password, salt);
+      profiles[email] = {
+        email,
+        salt,
+        hash,
+        createdAt: new Date().toISOString()
+      };
+      saveStoredProfiles(profiles);
+
+      const session = { email, signedInAt: new Date().toISOString() };
+      saveStoredSession(session);
+
+      // Best-effort optional email notification
+      sendDemoEmailNotification("demo_signup", email);
+
+      setAuthMessage("Demo profile created! Stepping inside the archive…", "success");
+      setTimeout(() => onAuthSuccess(session, false), 400);
+
+    } else if (authState.mode === "signin") {
+      const profile = profiles[email];
+      if (!profile) {
+        setAuthMessage("No demo profile found for this email. Click 'Create account' to begin.", "error");
+        return;
+      }
+
+      const hash = await hashDemoPassword(password, profile.salt);
+      if (hash !== profile.hash) {
+        setAuthMessage("Incorrect demo password. Please try again.", "error");
+        return;
+      }
+
+      const session = { email, signedInAt: new Date().toISOString() };
+      saveStoredSession(session);
+
+      // Best-effort optional email notification
+      sendDemoEmailNotification("demo_signin", email);
+
+      setAuthMessage("Demo credentials verified! Stepping inside the archive…", "success");
+      setTimeout(() => onAuthSuccess(session, false), 400);
+    }
+  } catch (err) {
+    setAuthMessage("An unexpected error occurred during demo authentication: " + err.message, "error");
+  } finally {
+    authSubmitBtn.disabled = false;
+    authSubmitBtn.textContent = originalText;
+  }
 }
 if (authForm) authForm.onsubmit = e => { e.preventDefault(); handleAuthSubmit(); };
 
 function onAuthSuccess(session, isRestored) {
-  authState.user = session.user;
+  authState.user = { email: session.email };
   authState.authenticated = true;
   updateAuthHeader();
 
   if (isRestored) {
     authState.inRoom = true;
     try { video.currentTime = T_END; } catch(_) {}
-    toast(`Welcome back, ${session.user.email}`);
+    toast(`Welcome back, ${session.email} (Demo Mode)`);
   } else {
-    setAuthMessage("Session verified. Stepping inside the archive…", "success");
-    setTimeout(enterArchiveRoom, 600);
+    enterArchiveRoom();
   }
 }
 
 function updateAuthHeader() {
   if (authState.authenticated && authState.user) {
     if (userBadge) {
-      userBadge.textContent = authState.user.email.split("@")[0];
+      userBadge.textContent = authState.user.email.split("@")[0] + " (demo)";
       userBadge.style.display = "inline-block";
     }
     if (signOutBtn) signOutBtn.style.display = "inline-block";
@@ -222,41 +437,93 @@ function updateAuthHeader() {
 }
 
 function handleSignOut() {
+  clearDemoSession();
   authState.user = null;
   authState.authenticated = false;
   authState.inRoom = false;
   authState.videoAdvancing = false;
+  transitionInProgress = false;
   updateAuthHeader();
   setAuthMode("signin");
-  toast("Signed out of your archive.");
+  toast("Signed out of demo archive.");
   goTo("hero");
-  try { video.currentTime = 0; } catch(_) {}
+  try { video.pause(); video.currentTime = 0; } catch(_) {}
 }
 if (signOutBtn) signOutBtn.onclick = handleSignOut;
 
+let transitionInProgress = false;
+
 function enterArchiveRoom() {
+  if (transitionInProgress || authState.inRoom) return;
+  transitionInProgress = true;
   authState.videoAdvancing = true;
-  try {
-    video.currentTime = T_DOORWAY;
+
+  const startPlaybackAtTin = () => {
     const p = video.play();
-    if (p) p.catch(() => {
-      authState.videoAdvancing = false;
-      authState.inRoom = true;
-      onEnteredRoom();
-    });
-  } catch(_) {
-    authState.videoAdvancing = false;
-    authState.inRoom = true;
-    onEnteredRoom();
+    if (p !== undefined) {
+      p.catch(err => {
+        console.warn("Video playback error during transition:", err);
+        finishRoomEntrance();
+      });
+    }
+  };
+
+  if (videoAvailable && dur) {
+    let seekTimer = null;
+    const onSeeked = () => {
+      if (seekTimer) clearTimeout(seekTimer);
+      video.removeEventListener("seeked", onSeeked);
+      startPlaybackAtTin();
+    };
+
+    if (Math.abs(video.currentTime - T_IN) < 0.05) {
+      startPlaybackAtTin();
+    } else {
+      video.addEventListener("seeked", onSeeked, { once: true });
+      seekTimer = setTimeout(() => {
+        video.removeEventListener("seeked", onSeeked);
+        startPlaybackAtTin();
+      }, 800);
+
+      try {
+        video.currentTime = T_IN;
+      } catch (e) {
+        if (seekTimer) clearTimeout(seekTimer);
+        video.removeEventListener("seeked", onSeeked);
+        startPlaybackAtTin();
+      }
+    }
+  } else {
+    finishRoomEntrance();
   }
+}
+
+function finishRoomEntrance() {
+  authState.videoAdvancing = false;
+  authState.inRoom = true;
+  transitionInProgress = false;
+  try {
+    video.pause();
+    video.currentTime = T_END;
+  } catch(_) {}
+  onEnteredRoom();
 }
 
 function onEnteredRoom() {
   authState.inRoom = true;
   try { video.currentTime = T_END; } catch(_) {}
-  toast("Welcome to your archive.");
+  toast("Welcome to your archive (Demo Mode).");
   goTo("model");
 }
+
+/* Check for existing session in localStorage on page load */
+function checkDemoSession() {
+  const session = getStoredSession();
+  if (session && session.email) {
+    onAuthSuccess(session, true);
+  }
+}
+checkDemoSession();
 
 /* Guarded header & workbench interactions */
 $("#importBtn").onclick = () => {
@@ -266,7 +533,7 @@ $("#importBtn").onclick = () => {
     setTimeout(() => authEmail?.focus(), 500);
     return;
   }
-  toast("GitHub connection will be configured in Step 2.");
+  toast("GitHub connection will be configured in Stage 4.");
 };
 
 function guardedOpenWB() {
@@ -290,17 +557,9 @@ const rail = $("#rail");
 railItems.forEach(([id,label]) => { const b = document.createElement("button"); b.dataset.go = id; b.innerHTML = `<i></i><span>${label}</span>`; b.setAttribute("aria-label", label); rail.appendChild(b); });
 const railBtns = $$("#rail button");
 
-/*
-  Timeline mapping:
-  - 0s to 15.10s: Corridor journey down the stairs and through the hallway up to the doorway.
-  - 15.10s: Paused right outside the open doorway facing into the room (authentication gate).
-  - Post-authentication: The video resumes from 15.10s through the doorway into the room,
-    settling on the tabletop with project dossiers at 18.74s.
-*/
-const T_DOORWAY = 15.10, T_END = 18.74, P_GATE = 0.50;
 function vt(p){
   if (authState.inRoom) return T_END;
-  return p < P_GATE ? T_DOORWAY * clamp(p / (P_GATE - 0.01)) : T_DOORWAY;
+  return p < CUT ? T_OUT * clamp(p / (CUT - 0.01)) : T_OUT;
 }
 
 const mid = id => { const c = chapters.find(c=>c.id===id); const b = Math.min(c.b, 1); return Math.max(c.a,0) + (b - Math.max(c.a,0)) * .35; };
@@ -320,8 +579,8 @@ $("#topBtn").onclick = () => scrollTo({top:0, behavior:"smooth"});
 let target = 0, shown = 0, dur = 0, ready = false, videoAvailable = false;
 function onScroll(){
   let raw = scrollY / Math.max(1, maxScroll());
-  if (!authState.authenticated && raw > P_GATE) {
-    raw = P_GATE;
+  if (!authState.authenticated && raw > CUT) {
+    raw = CUT;
   }
   target = clamp(raw);
 }
@@ -351,18 +610,14 @@ function frame(now){
   if(Math.abs(target-shown) < .0002) shown = target;
 
   if (authState.videoAdvancing) {
-    /* Natural playback transitioning through doorway into the room */
+    /* Natural playback transitioning from T_IN (16s) through doorway to T_END (18.74s) */
     if (video.currentTime >= T_END - 0.08 || video.ended) {
-      video.pause();
-      try { video.currentTime = T_END; } catch(_) {}
-      authState.videoAdvancing = false;
-      authState.inRoom = true;
-      onEnteredRoom();
+      finishRoomEntrance();
     }
   } else if(ready && videoAvailable && dur){
     const t = Math.min(vt(shown), dur - .05);
     if(!video.seeking && Math.abs(video.currentTime - t) > .008){
-      try { video.currentTime = t; } catch(_) { /* Keep the interface responsive if seeking is unsupported. */ }
+      try { video.currentTime = t; } catch(_) { /* Keep the interface responsive */ }
     }
   }
   update(shown);
@@ -491,5 +746,6 @@ videoStartupTimer = setTimeout(() => {
 
 loadNextVideoSource();
 requestAnimationFrame(frame);
-window.__PG_STEP1__ = { vt, authState, T_DOORWAY, T_END, P_GATE };
+window.__PG_STAGE2__ = { vt, authState, CUT, T_OUT, T_IN, T_END, enterArchiveRoom, handleSignOut, getStoredProfiles, saveStoredProfiles, clearDemoSession, sendDemoEmailNotification };
+window.__PG_STEP1__ = window.__PG_STAGE2__;
 })();
