@@ -10,12 +10,17 @@ const reduce = matchMedia("(prefers-reduced-motion:reduce)").matches;
 /* ========================================================
    TIMELINE CONSTANTS & EDITORIAL SPECIFICATION
    CUT = 0.5: Doorway authentication gate scroll threshold.
+   GATE_DWELL = 0.505: Explicit post-gate threshold. Visitor holds at doorway (5.00s)
+     until explicitly scrolling beyond 0.505, preventing floating-point / rounding jitter
+     at integer pixel boundaries.
+   POST_GATE_END = 0.66: Completion of room entrance scrub (tabletop dossiers frame at 18.74s).
+     Aligns with end of chapter 'model' (0.555 - 0.665), avoiding dead intervals.
    T_OUT = 5.0: Pause frame at the gate (5.0s).
-   T_IN = 16.0: Room entrance frame jumped to upon auth (16.0s).
+   T_IN = 16.0: Room entrance frame jumped to upon crossing gate (16.0s).
    T_END = 18.74: Resting frame showing tabletop dossiers (18.74s).
-   Seconds 5–16 are never played or scrubbed through.
+   Seconds 5–16 are never played or scrubbed through (direct editorial cut).
    ======================================================== */
-const CUT = 0.5, T_OUT = 5.0, T_IN = 16.0, T_END = 18.74;
+const CUT = 0.5, GATE_DWELL = 0.505, POST_GATE_END = 0.66, T_OUT = 5.0, T_IN = 16.0, T_END = 18.74;
 
 /* ========================================================
    VIDEO STATE MACHINE
@@ -860,8 +865,8 @@ async function executeAuthAction(actionType) {
     saveStoredSession(session);
     sendDemoEmailNotification("demo_signup", email);
 
-    setAuthMessage("Demo profile created with PBKDF2 credentials! Stepping inside the archive…", "success");
-    setTimeout(() => onAuthSuccess(session, false), 400);
+    setAuthMessage("Demo profile created! Access granted. Scroll to enter the archive.", "success");
+    setTimeout(() => onAuthSuccess(session, false), 300);
 
   } else if (actionType === "enter-archive") {
     const profile = profiles[email];
@@ -899,23 +904,51 @@ async function executeAuthAction(actionType) {
     saveStoredSession(session);
     sendDemoEmailNotification("demo_signin", email);
 
-    setAuthMessage("Demo credentials verified! Stepping inside the archive…", "success");
-    setTimeout(() => onAuthSuccess(session, false), 400);
+    setAuthMessage("Demo credentials verified! Access granted. Scroll to enter the archive.", "success");
+    setTimeout(() => onAuthSuccess(session, false), 300);
+  }
+}
+
+const authCanvasPanel = $(".canvas-panel", $("#authPanel"));
+function updateDoorwayUI() {
+  if (authState.authenticated && authState.user) {
+    if (authEyebrow) authEyebrow.textContent = "DOORWAY UNLOCKED";
+    if (authHeading) authHeading.textContent = "Archive Access Granted";
+    if (authSub) authSub.textContent = `Signed in as ${authState.user.email} (Demo Mode). Continue scrolling down to step inside the archive.`;
+    if (emailField) emailField.style.display = "none";
+    if (passwordField) passwordField.style.display = "none";
+    if (authCanvasPanel) authCanvasPanel.style.display = "none";
+    if (authToggleBtn) authToggleBtn.style.display = "none";
+    if (authGithubToggleBtn) authGithubToggleBtn.style.display = "none";
+    if (authForgotBtn) authForgotBtn.style.display = "none";
+    if (authBackBtn) {
+      authBackBtn.textContent = "Sign out";
+      authBackBtn.style.display = "inline-block";
+      authBackBtn.onclick = handleSignOut;
+    }
+    setAuthMessage("Access granted. Scroll to enter the archive.", "success");
+  } else {
+    if (authCanvasPanel) authCanvasPanel.style.display = "block";
+    if (authBackBtn) {
+      authBackBtn.textContent = "Back to sign in";
+      authBackBtn.onclick = () => setAuthMode("signin");
+    }
+    setAuthMode(authState.mode || "signin");
   }
 }
 
 function onAuthSuccess(session, isRestored) {
   authState.user = { email: session.email };
   authState.authenticated = true;
+  authState.inRoom = false; // Authenticated user starts at current scroll/doorway, NOT forced into room!
   updateAuthHeader();
+  updateDoorwayUI();
 
   if (isRestored) {
-    authState.inRoom = true;
-    videoState = VIDEO_STATES.ROOM_COMPLETE;
-    try { video.currentTime = T_END; } catch(_) {}
     toast(`Welcome back, ${session.email} (Demo Mode)`);
   } else {
-    enterArchiveRoom();
+    setAuthMessage("Access granted. Scroll to enter the archive.", "success");
+    toast("Access granted. Scroll to enter the archive.");
   }
 }
 
@@ -939,95 +972,39 @@ function handleSignOut() {
   authState.inRoom = false;
   videoState = VIDEO_STATES.AT_GATE;
   updateAuthHeader();
+  updateDoorwayUI();
   setAuthMode("signin");
   toast("Signed out of demo archive.");
   goTo("hero");
   try {
     video.pause();
-    video.currentTime = 0;
+    requestVideoSeek(0);
   } catch(_) {}
 }
 if (signOutBtn) signOutBtn.onclick = handleSignOut;
 
 /* ========================================================
-   HARDENED VIDEO TRANSITION ENGINE
+   SCROLL-DRIVEN ARCHIVE TRANSITION HANDLERS
    ======================================================== */
 function enterArchiveRoom() {
-  if (authState.inRoom || videoState === VIDEO_STATES.PLAYING_ROOM_ENTRANCE || videoState === VIDEO_STATES.SEEKING_TO_ROOM) {
+  if (!authState.authenticated) {
+    toast("Sign in at the doorway to unlock the archive.");
+    goTo("descent");
     return;
   }
-
-  // Respect reduced motion
-  if (reduce) {
-    videoState = VIDEO_STATES.ROOM_COMPLETE;
-    authState.inRoom = true;
-    try { video.pause(); video.currentTime = T_END; } catch(_) {}
-    finishRoomEntrance();
-    return;
-  }
-
-  videoState = VIDEO_STATES.SEEKING_TO_ROOM;
-
-  const startPlaybackAtTin = () => {
-    videoState = VIDEO_STATES.PLAYING_ROOM_ENTRANCE;
-    const playPromise = video.play();
-    if (playPromise !== undefined) {
-      playPromise.catch(err => {
-        console.warn("Video autoplay prevented; falling back to completed room frame:", err);
-        videoState = VIDEO_STATES.PLAYBACK_BLOCKED;
-        finishRoomEntrance();
-      });
-    }
-  };
-
-  if (videoAvailable && dur) {
-    const onSeeked = () => {
-      video.removeEventListener("seeked", onSeeked);
-      // Tolerance verification: ensure we are at or very near T_IN (16.0s)
-      if (Math.abs(video.currentTime - T_IN) < 0.35) {
-        startPlaybackAtTin();
-      } else {
-        try {
-          video.currentTime = T_IN;
-          startPlaybackAtTin();
-        } catch (_) {
-          startPlaybackAtTin();
-        }
-      }
-    };
-
-    if (Math.abs(video.currentTime - T_IN) < 0.1) {
-      startPlaybackAtTin();
-    } else {
-      video.addEventListener("seeked", onSeeked, { once: true });
-      try {
-        video.currentTime = T_IN;
-      } catch (e) {
-        video.removeEventListener("seeked", onSeeked);
-        startPlaybackAtTin();
-      }
-    }
-  } else {
-    finishRoomEntrance();
-  }
+  goTo("model");
 }
 
 function finishRoomEntrance() {
   videoState = VIDEO_STATES.ROOM_COMPLETE;
   authState.inRoom = true;
-  try {
-    video.pause();
-    video.currentTime = T_END;
-  } catch(_) {}
-  onEnteredRoom();
+  requestVideoSeek(T_END);
 }
 
 function onEnteredRoom() {
   authState.inRoom = true;
   videoState = VIDEO_STATES.ROOM_COMPLETE;
-  try { video.currentTime = T_END; } catch(_) {}
-  toast("Welcome to your archive (Demo Mode).");
-  goTo("model");
+  requestVideoSeek(T_END);
 }
 
 function checkDemoSession() {
@@ -2041,9 +2018,106 @@ if (rail) {
 }
 const railBtns = $$("#rail button");
 
+/* ========================================================
+   CONTROLLED VIDEO SEEKING CONTROLLER
+   - Single seek in flight lock (isSeeking, video.seeking)
+   - Latest desired target preservation (pendingSeekTime)
+   - Throttling matched to video framerate (24fps ~ 41.7ms)
+   - Frame precision threshold (0.03s)
+   - Watchdog timeout to prevent stuck seeking
+   - Direct cut across gate without intermediate interpolation
+   - Video remains paused during scroll scrubbing
+   ======================================================== */
+let isSeeking = false;
+let pendingSeekTime = null;
+let lastSeekDispatchTime = 0;
+let seekWatchdogTimer = null;
+let seekThrottleTimer = null;
+
+const MIN_SEEK_DELTA = 0.03;       // Useful frame precision (~3/4 of a 24fps frame)
+const MIN_SEEK_INTERVAL_MS = 35;   // ~28 seeks/sec maximum to match decode capability
+
+function requestVideoSeek(targetTime) {
+  if (!video || !videoAvailable || !dur) return;
+
+  const clampedTime = clamp(targetTime, 0, dur - 0.05);
+  pendingSeekTime = clampedTime;
+
+  // Keep video paused during scroll scrubbing
+  if (!video.paused) {
+    try { video.pause(); } catch(_) {}
+  }
+
+  // If a seek is already active in the browser media pipeline, wait for 'seeked' event
+  if (isSeeking || video.seeking) {
+    return;
+  }
+
+  // Throttle seeks
+  const now = performance.now();
+  const elapsed = now - lastSeekDispatchTime;
+  if (elapsed < MIN_SEEK_INTERVAL_MS) {
+    if (!seekThrottleTimer) {
+      seekThrottleTimer = setTimeout(() => {
+        seekThrottleTimer = null;
+        if (!isSeeking && !video.seeking && pendingSeekTime !== null) {
+          const delta = Math.abs(video.currentTime - pendingSeekTime);
+          if (delta >= MIN_SEEK_DELTA) {
+            dispatchSeek(pendingSeekTime);
+          }
+        }
+      }, MIN_SEEK_INTERVAL_MS - elapsed);
+    }
+    return;
+  }
+
+  // Ignore negligible changes
+  if (Math.abs(video.currentTime - clampedTime) < MIN_SEEK_DELTA) {
+    return;
+  }
+
+  dispatchSeek(clampedTime);
+}
+
+function dispatchSeek(time) {
+  isSeeking = true;
+  lastSeekDispatchTime = performance.now();
+
+  // Watchdog: If browser drops or delays the seeked event, reset lock after 250ms
+  clearTimeout(seekWatchdogTimer);
+  seekWatchdogTimer = setTimeout(() => {
+    if (isSeeking) {
+      isSeeking = false;
+      if (pendingSeekTime !== null && Math.abs(video.currentTime - pendingSeekTime) >= MIN_SEEK_DELTA) {
+        requestVideoSeek(pendingSeekTime);
+      }
+    }
+  }, 250);
+
+  try {
+    video.currentTime = time;
+  } catch (_) {
+    isSeeking = false;
+    clearTimeout(seekWatchdogTimer);
+  }
+}
+
 function vt(p) {
-  if (authState.inRoom || videoState === VIDEO_STATES.ROOM_COMPLETE) return T_END;
-  return p < CUT ? T_OUT * clamp(p / (CUT - 0.01)) : T_OUT;
+  // Pre-gate: scroll from page top (0.00) to CUT (0.50) maps linearly to 0.00s -> 5.00s (T_OUT)
+  if (p <= CUT) {
+    return (clamp(p, 0, CUT) / CUT) * T_OUT;
+  }
+  // At gate: if unauthenticated or within doorway dwell threshold, hold strictly at doorway frame T_OUT (5.00s)
+  if (!authState.authenticated || p <= GATE_DWELL) {
+    return T_OUT;
+  }
+  // Post-gate: authenticated visitor scrolls beyond the doorway.
+  // Direct editorial cut: jump from 5.00s to 16.00s (T_IN), then scrub to 18.74s (T_END) across [GATE_DWELL, POST_GATE_END].
+  if (p >= POST_GATE_END) {
+    return T_END;
+  }
+  const u = (p - GATE_DWELL) / (POST_GATE_END - GATE_DWELL);
+  return T_IN + u * (T_END - T_IN);
 }
 
 const mid = id => {
@@ -2053,6 +2127,7 @@ const mid = id => {
   return Math.max(c.a, 0) + (b - Math.max(c.a, 0)) * 0.35;
 };
 const maxScroll = () => document.documentElement.scrollHeight - innerHeight;
+const getGateScrollY = () => Math.floor(CUT * Math.max(1, maxScroll()));
 
 function goTo(id) {
   const gateIds = ["model", "triage", "modes", "trust"];
@@ -2061,7 +2136,9 @@ function goTo(id) {
     goTo("descent");
     return;
   }
-  scrollTo({ top: mid(id) * maxScroll(), behavior: reduce ? "auto" : "smooth" });
+  const targetY = mid(id) * maxScroll();
+  const clampedY = !authState.authenticated ? Math.min(targetY, getGateScrollY()) : targetY;
+  scrollTo({ top: clampedY, behavior: reduce ? "auto" : "smooth" });
 }
 document.addEventListener("click", e => {
   const t = e.target.closest("[data-go]");
@@ -2071,14 +2148,73 @@ if ($("#topBtn")) $("#topBtn").onclick = () => scrollTo({ top: 0, behavior: "smo
 
 let target = 0, shown = 0, dur = 0, ready = false, videoAvailable = false;
 function onScroll() {
-  let raw = scrollY / Math.max(1, maxScroll());
-  if (!authState.authenticated && raw > CUT) {
-    raw = CUT;
+  const maxS = Math.max(1, maxScroll());
+  const gateY = Math.floor(CUT * maxS);
+
+  // If unauthenticated, clamp real browser scroll so it cannot exceed the doorway gate
+  if (!authState.authenticated && window.scrollY > gateY) {
+    window.scrollTo(0, gateY);
+    target = CUT;
+    return;
   }
+
+  const raw = window.scrollY / maxS;
   target = clamp(raw);
 }
 addEventListener("scroll", onScroll, { passive: true });
 addEventListener("resize", onScroll);
+
+// Wheel clamp: prevent wheel gestures from accumulating scroll past the doorway gate when unauthenticated
+addEventListener("wheel", (e) => {
+  if (!authState.authenticated) {
+    const gateY = getGateScrollY();
+    if (window.scrollY >= gateY && e.deltaY > 0) {
+      e.preventDefault();
+      if (window.scrollY !== gateY) {
+        window.scrollTo(0, gateY);
+      }
+    }
+  }
+}, { passive: false });
+
+// Touchmove clamp: prevent touch swipe down past the doorway gate when unauthenticated
+let touchStartY = 0;
+addEventListener("touchstart", (e) => {
+  if (e.touches && e.touches.length > 0) {
+    touchStartY = e.touches[0].clientY;
+  }
+}, { passive: true });
+
+addEventListener("touchmove", (e) => {
+  if (!authState.authenticated && e.touches && e.touches.length > 0) {
+    const gateY = getGateScrollY();
+    const currentY = e.touches[0].clientY;
+    const deltaY = touchStartY - currentY; // positive = dragging upward = scrolling downward
+    if (window.scrollY >= gateY && deltaY > 0) {
+      e.preventDefault();
+      if (window.scrollY !== gateY) {
+        window.scrollTo(0, gateY);
+      }
+    }
+  }
+}, { passive: false });
+
+// Keydown clamp: prevent scroll keys from scrolling past doorway gate when unauthenticated
+addEventListener("keydown", (e) => {
+  if (!authState.authenticated) {
+    const active = document.activeElement;
+    if (active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA" || active.tagName === "SELECT")) {
+      return;
+    }
+    const gateY = getGateScrollY();
+    if (window.scrollY >= gateY && ["ArrowDown", "PageDown", " ", "End"].includes(e.key)) {
+      e.preventDefault();
+      if (window.scrollY !== gateY) {
+        window.scrollTo(0, gateY);
+      }
+    }
+  }
+});
 
 function update(p) {
   const F = 0.018;
@@ -2105,17 +2241,22 @@ function frame(now) {
   shown += (target - shown) * (reduce ? 1 : 1 - Math.exp(-dt / 0.085));
   if (Math.abs(target - shown) < 0.0002) shown = target;
 
-  if (videoState === VIDEO_STATES.PLAYING_ROOM_ENTRANCE) {
-    if (video.currentTime >= T_END - 0.08 || video.ended) {
-      finishRoomEntrance();
-    }
-  } else if (videoState === VIDEO_STATES.AT_GATE) {
-    if (ready && videoAvailable && dur) {
-      const t = Math.min(vt(shown), dur - 0.05);
-      if (!video.seeking && Math.abs(video.currentTime - t) > 0.008) {
-        try { video.currentTime = t; } catch(_) {}
-      }
-    }
+  // Dynamically update videoState and authState.inRoom based on scroll position
+  if (shown <= GATE_DWELL) {
+    videoState = VIDEO_STATES.AT_GATE;
+    authState.inRoom = false;
+  } else if (shown >= POST_GATE_END) {
+    videoState = VIDEO_STATES.ROOM_COMPLETE;
+    authState.inRoom = authState.authenticated;
+  } else {
+    videoState = VIDEO_STATES.PLAYING_ROOM_ENTRANCE;
+    authState.inRoom = false;
+  }
+
+  // Request controlled video seek derived from current shown scroll progress
+  if (ready && videoAvailable && dur) {
+    const desiredTime = vt(shown);
+    requestVideoSeek(desiredTime);
   }
 
   update(shown);
@@ -2174,7 +2315,9 @@ function markVideoReady() {
   const mediaDuration = video.duration;
   dur = Number.isFinite(mediaDuration) && mediaDuration > 0 ? mediaDuration : 18.79;
   if (videoStartupTimer) clearTimeout(videoStartupTimer);
+  video.pause();
   revealPage();
+  requestVideoSeek(vt(shown));
 }
 
 function showVideoFallback() {
@@ -2212,11 +2355,39 @@ if (video) {
       }
     } catch (_) {}
   });
+  video.addEventListener("loadedmetadata", () => {
+    if (Number.isFinite(video.duration) && video.duration > 0) {
+      dur = video.duration;
+    }
+    video.pause();
+  });
   video.addEventListener("loadeddata", () => {
     video.pause();
     markVideoReady();
   });
+  video.addEventListener("canplay", markVideoReady);
   video.addEventListener("canplaythrough", markVideoReady);
+  video.addEventListener("seeked", () => {
+    isSeeking = false;
+    clearTimeout(seekWatchdogTimer);
+
+    // If scroll changed while seek was in flight, schedule the latest target
+    if (pendingSeekTime !== null && Math.abs(video.currentTime - pendingSeekTime) >= MIN_SEEK_DELTA) {
+      const elapsed = performance.now() - lastSeekDispatchTime;
+      if (elapsed >= MIN_SEEK_INTERVAL_MS) {
+        dispatchSeek(pendingSeekTime);
+      } else if (!seekThrottleTimer) {
+        seekThrottleTimer = setTimeout(() => {
+          seekThrottleTimer = null;
+          if (!isSeeking && !video.seeking && pendingSeekTime !== null) {
+            if (Math.abs(video.currentTime - pendingSeekTime) >= MIN_SEEK_DELTA) {
+              dispatchSeek(pendingSeekTime);
+            }
+          }
+        }, MIN_SEEK_INTERVAL_MS - elapsed);
+      }
+    }
+  });
   video.addEventListener("error", () => {
     videoAvailable = false;
     dur = 0;
@@ -2256,12 +2427,16 @@ checkDemoSession();
 window.__PG_STAGE3__ = {
   vt,
   authState,
-  videoState,
+  get videoState() { return videoState; },
+  set videoState(v) { videoState = v; },
   VIDEO_STATES,
   CUT,
+  GATE_DWELL,
+  POST_GATE_END,
   T_OUT,
   T_IN,
   T_END,
+  requestVideoSeek,
   enterArchiveRoom,
   finishRoomEntrance,
   handleSignOut,
