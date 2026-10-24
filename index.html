@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
@@ -70,10 +71,20 @@
   <div style="width:100%;max-width:460px;margin:0 auto">
     <h2 class="s" style="color:var(--dim);margin-bottom:14px">Step inside. The records are kept here.</h2>
     <div id="authPanel" class="auth-card">
-      <div class="auth-demo-badge">DEMO MODE · local to this browser</div>
+      <div class="auth-demo-badge" id="authBadgeText">DEMO MODE · local to this browser</div>
       <span class="auth-eyebrow" id="authEyebrow">YOUR ARCHIVE AWAITS</span>
-      <h3 class="auth-heading" id="authHeading">Your work is waiting.</h3>
-      <p class="auth-sub" id="authSub">Sign in to return to your archive, or create an account to begin preserving your work.</p>
+      <!-- Pre-seeded Judge Showcase Credentials Callout -->
+      <div class="judge-demo-box" id="judgeDemoBox">
+        <div class="judge-demo-header">
+          <span class="judge-badge">JUDGE DEMO ACCESS</span>
+          <button type="button" class="judge-autofill-btn" id="judgeAutofillBtn">⚡ 1-Click Autofill Credentials</button>
+        </div>
+        <div class="judge-demo-creds">
+          <div><span class="cred-label">Email:</span> <code id="judgeCredEmail">abc_test@gmail.com</code></div>
+          <div><span class="cred-label">Password:</span> <code id="judgeCredPass">abcde1234</code></div>
+        </div>
+        <small class="judge-hint">Preloaded with all 11 curated project volumes, black box passports, and recovery artifacts.</small>
+      </div>
 
       <form id="authForm" class="auth-form" onsubmit="return false;">
         <div class="auth-field" id="emailField">
@@ -83,6 +94,29 @@
         <div class="auth-field" id="passwordField">
           <label for="authPassword" id="passwordLabel">Password</label>
           <input type="password" id="authPassword" name="password" autocomplete="current-password" placeholder="••••••••" required>
+        </div>
+
+        <div class="auth-field" id="githubField" style="display:none">
+          <label for="authGithubUser">GitHub Username or Access Token</label>
+          <input type="text" id="authGithubUser" name="githubUser" placeholder="e.g. sheldonvibinonmusic" autocomplete="username">
+          <small style="color:var(--dim);font-size:11.5px;margin-top:3px;display:block">Enter your username to auto-import all repositories, or token for private access.</small>
+        </div>
+
+        <!-- Optional Supabase Cloud Settings -->
+        <div id="supabaseSettingsPanel" style="display:none;background:rgba(0,0,0,.6);border:1px dashed var(--line);border-radius:10px;padding:12px;margin:10px 0">
+          <strong style="display:block;font-size:12px;color:var(--amber);margin-bottom:6px">Supabase Cloud Auth Configuration</strong>
+          <div class="auth-field" style="margin-bottom:8px">
+            <label for="sbUrlInput" style="font-size:11px">Supabase Project URL</label>
+            <input type="text" id="sbUrlInput" placeholder="https://your-project.supabase.co" style="padding:6px 10px;font-size:12px">
+          </div>
+          <div class="auth-field">
+            <label for="sbAnonKeyInput" style="font-size:11px">Supabase Anon Key</label>
+            <input type="password" id="sbAnonKeyInput" placeholder="eyJhbGciOi..." style="padding:6px 10px;font-size:12px">
+          </div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button type="button" class="pill accent" id="saveSbBtn" style="padding:4px 10px;font-size:11px">Save & Connect</button>
+            <button type="button" class="auth-link" id="cancelSbBtn" style="font-size:11px">Close</button>
+          </div>
         </div>
 
         <!-- Canvas Protocol Doorway Keycards & Action Zones -->
@@ -106,9 +140,9 @@
               <span class="card-hint">Drag into [ Create Profile ] zone ➔</span>
             </div>
 
-            <div id="authGithubCard" class="data-card" draggable="true" tabindex="0" role="button" data-card-type="auth-github" aria-grabbed="false" aria-label="GitHub OAuth Keycard. Drag into Connect GitHub zone, or press Space to lift." style="display:none">
+            <div id="authGithubCard" class="data-card" draggable="true" tabindex="0" role="button" data-card-type="auth-github" aria-grabbed="false" aria-label="GitHub Connect Keycard. Drag into Connect GitHub zone, or press Space to lift." style="display:none">
               <div class="card-meta"><span class="card-chip">KEYCARD</span><span class="card-handle" aria-hidden="true">⋮⋮</span></div>
-              <strong class="card-title">GitHub OAuth Keycard</strong>
+              <strong class="card-title">GitHub Connect Keycard</strong>
               <span class="card-hint">Drag into [ Connect GitHub ] zone ➔</span>
             </div>
           </div>
@@ -130,15 +164,16 @@
             <div id="authGithubZone" class="action-zone" data-action-zone="connect-github" data-accepts="auth-github" tabindex="0" role="region" aria-label="Action Zone: Connect GitHub. Drop GitHub Keycard here." style="display:none">
               <span class="zone-badge">ACTION ZONE</span>
               <strong class="zone-name">CONNECT GITHUB</strong>
-              <span class="zone-desc">Drop Keycard here for OAuth login</span>
+              <span class="zone-desc">Drop Keycard here to import all repositories</span>
             </div>
           </div>
         </div>
 
         <div class="auth-links">
           <button type="button" class="auth-link" id="authToggleBtn">Create account</button>
-          <button type="button" class="auth-link" id="authGithubToggleBtn">GitHub sign in</button>
+          <button type="button" class="auth-link" id="authGithubToggleBtn">GitHub connect</button>
           <button type="button" class="auth-link" id="authForgotBtn">Forgot password?</button>
+          <button type="button" class="auth-link" id="authSupabaseToggleBtn">⚙️ Cloud Auth</button>
           <button type="button" class="auth-link" id="authBackBtn" style="display:none">Back to sign in</button>
         </div>
         <div id="authMsg" class="auth-msg" role="status" aria-live="polite"></div>
@@ -170,6 +205,15 @@
     <div class="paths" role="tablist" aria-label="Revival paths" id="paths"></div>
     <div class="trigger" id="trigger"></div>
     <div class="pathcard" id="pathcard"></div>
+
+    <!-- Quick Project Selector for Triage -->
+    <div class="triage-picker-section">
+      <div class="triage-picker-header">
+        <span class="canvas-tip">SELECT VOLUME TO TRIAGE:</span>
+        <span class="triage-picker-hint">Click any volume to switch active record & lift its physical book</span>
+      </div>
+      <div class="triage-quick-picker" id="triageQuickPicker" role="tablist" aria-label="Select active project for triage"></div>
+    </div>
 
     <!-- Canvas Protocol Triage Section -->
     <div class="canvas-triage-tray">
@@ -220,12 +264,35 @@
 </section>
 
 <section class="chapter center" data-id="modes" data-range="0.805,0.9" aria-label="Dashboard">
-  <div class="panel wide">
+  <div class="panel wide" id="dashPanelWide">
     <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between">
       <h2 class="s">Atmospheric discovery. Practical execution.</h2>
-      <span class="tag amber">Graveyard Mode</span>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <span class="tag amber">Archive Tabletop</span>
+        <button type="button" class="pill" id="dashScrollDownBtn" title="Scroll down to inspect full dossier" style="font-size:11px;padding:4px 10px">↓ Inspect Details</button>
+      </div>
     </div>
-    <p class="muted" style="margin:6px 0 16px;text-align:left">One project record, two modes. This room is Graveyard mode: open a dossier, then pick a path, or skip to Workbench. Zero-guilt tone, no “failed” badges.</p>
+    <p class="muted" style="margin:6px 0 14px;text-align:left">All preserved volumes resting on the tabletop. Select or drag any volume to lift into inspection; change volumes to see another book physically lift into focus.</p>
+    
+    <!-- Tabletop Archive Bookshelf (All stored local & GitHub projects) -->
+    <div class="archive-shelf-container">
+      <div class="archive-shelf-header">
+        <span class="shelf-label">TABLETOP ARCHIVE RECORDS</span>
+        <span class="shelf-hint" id="shelfCounter">Preserved Volumes</span>
+      </div>
+      <div class="archive-books-shelf" id="archiveBooksShelf" role="tablist" aria-label="Archive project records"></div>
+    </div>
+
+    <!-- Dashboard Mode View Switcher (Both / AI Blueprint / Dossier Passport) -->
+    <div class="dash-view-tabs" role="tablist" aria-label="Dashboard view modes">
+      <button type="button" class="dash-view-btn on" data-dashview="both" role="tab" aria-selected="true">⚡ Combined View</button>
+      <button type="button" class="dash-view-btn" data-dashview="ai" role="tab" aria-selected="false">⚡ AI Architecture Blueprint</button>
+      <button type="button" class="dash-view-btn" data-dashview="dossier" role="tab" aria-selected="false">📋 Context Passport & Black Box</button>
+    </div>
+
+    <!-- AI Architectural Decomposition & Summary Component -->
+    <div id="aiSummaryContainer" class="ai-summary-panel"></div>
+
     <div class="dossier" id="dossierA"></div>
     <div class="flow">Enter<span>→</span>Discover<span>→</span>Inspect<span>→</span>Act</div>
   </div>
@@ -282,14 +349,16 @@
   <!-- Tab 1: Records & Roulette -->
   <div class="wb-tab-panel on" id="wbPanelRecords">
     <div class="wb-grid">
-      <div>
+      <div class="wb-sidebar">
         <div class="plist" id="plist" aria-label="Saved projects list"></div>
         <div class="roulette"><b>Weekend Revival Roulette</b><br><span class="muted">Pick a project by the free time you have.</span>
           <select id="free" aria-label="Free time"><option value="2">About 2 hours</option><option value="5">Half a day</option><option value="16">A full weekend</option></select>
           <button class="pill" id="spin" style="margin-top:8px">Pick for me</button><div class="pick" id="pick"></div></div>
       </div>
-      <div class="panel wide" style="max-width:none">
-        <div class="dossier" id="dossierB"></div>
+      <div class="wb-details">
+        <div class="panel wide" style="max-width:none">
+          <div class="dossier" id="dossierB"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -335,17 +404,34 @@
           <!-- Populated when files are staged -->
         </div>
       </div>
+
+      <!-- Supabase Project & DB Schema Intake Column -->
+      <div class="intake-card">
+        <h3>Supabase Project & Schema Import</h3>
+        <p class="muted" style="font-size:13px;margin:6px 0 12px">Connect a Supabase project URL & API key to discover all PostgreSQL tables, relations, and schemas.</p>
+        <div class="intake-input-row" style="margin-bottom:8px">
+          <input type="text" id="sbProjectUrlInput" placeholder="https://your-project.supabase.co" aria-label="Supabase Project URL">
+        </div>
+        <div class="intake-input-row">
+          <input type="password" id="sbProjectKeyInput" placeholder="Supabase Anon or Service Key" aria-label="Supabase API Key">
+          <button class="pill accent" id="sbFetchBtn">Stage Schema</button>
+        </div>
+        <div id="sbFetchStatus" class="intake-status" aria-live="polite"></div>
+        <div class="staged-card-slot" id="sbCardSlot">
+          <!-- Populated when Supabase schema is staged -->
+        </div>
+      </div>
     </div>
 
     <!-- Intake Action Zones -->
     <div class="intake-action-row">
-      <div class="action-zone" data-action-zone="import-archive" data-accepts="github-repo,file-batch" tabindex="0" role="region" aria-label="Action Zone: Import to Archive. Drop staged GitHub card or file batch card here.">
+      <div class="action-zone" data-action-zone="import-archive" data-accepts="github-repo,file-batch,supabase-schema" tabindex="0" role="region" aria-label="Action Zone: Import to Archive. Drop staged GitHub card, file batch, or Supabase schema card here.">
         <span class="zone-badge">ACTION ZONE</span>
         <strong class="zone-name">IMPORT TO ARCHIVE</strong>
         <span class="zone-desc">Drop staged card here to commit to IndexedDB</span>
       </div>
 
-      <div class="action-zone" data-action-zone="analyze-project" data-accepts="github-repo,file-batch,project-card" tabindex="0" role="region" aria-label="Action Zone: Analyze Project. Drop staged card or project card here.">
+      <div class="action-zone" data-action-zone="analyze-project" data-accepts="github-repo,file-batch,supabase-schema,project-card" tabindex="0" role="region" aria-label="Action Zone: Analyze Project. Drop staged card or project card here.">
         <span class="zone-badge">ACTION ZONE</span>
         <strong class="zone-name">ANALYZE PROJECT STRUCTURE</strong>
         <span class="zone-desc">Drop card here for deterministic rules-based audit</span>
@@ -445,6 +531,16 @@
           <span class="zone-badge" style="background:var(--hot);color:#fff">DANGER ZONE</span>
           <strong class="zone-name" id="resetZoneTitle">RESET DEMO ARCHIVE</strong>
           <span class="zone-desc" id="resetZoneDesc">Drop Reset Keycard here (Step 1 of 2)</span>
+        </div>
+      </div>
+
+      <div class="intake-card" style="border-color:rgba(224,53,47,.25)">
+        <h3 style="color:var(--hot)">Decommission Record</h3>
+        <p class="muted" style="font-size:13px;margin:6px 0 12px">Permanently remove an individual project record from your local IndexedDB archive with 2-step safeguard.</p>
+        <div class="action-zone" id="decommissionZone" data-action-zone="decommission-project" data-accepts="project-card" tabindex="0" role="region" aria-label="Action Zone: Decommission Project. Drop active project card here to remove." style="border-color:rgba(224,53,47,.4);margin-top:14px">
+          <span class="zone-badge" style="background:rgba(224,53,47,.2);color:#ff9e9a">DESTRUCTIVE ACTION</span>
+          <strong class="zone-name" id="decomZoneTitle">DECOMMISSION RECORD</strong>
+          <span class="zone-desc" id="decomZoneDesc">Drop project card here to remove (Safeguarded)</span>
         </div>
       </div>
     </div>
