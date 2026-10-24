@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Project Graveyard — VisionQuest</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div id="loader" role="status"><div><p id="loaderMessage">Opening the archive</p><div id="bar"><i></i></div></div></div>
+
+<div id="stage">
+  <video id="journey" muted playsinline preload="auto" aria-hidden="true"></video>
+  <div id="tint"></div><div id="scrim"></div><div id="grain"></div><div id="dim"></div>
+</div>
+
+<div id="progress"><i></i></div>
+<header>
+  <div class="brand">ViSiONQUEST</div>
+  <span id="userBadge" class="user-chip" style="display:none"></span>
+  <button class="pill" id="importBtn">+ GitHub import</button>
+  <button class="pill accent" id="wbBtn">Skip to Workbench</button>
+  <button class="pill" id="signOutBtn" style="display:none">Sign out</button>
+</header>
+<div id="rail" aria-label="Chapter progress"></div>
+
+<main>
+<div id="scroller"></div>
+
+<section class="chapter" data-id="hero" data-range="-1,0.085" aria-label="Introduction">
+  <div>
+    <h1 class="in" style="--d:0">The Project<br>Graveyard</h1>
+    <p class="hero-sub in" style="--d:2">Remember. Recover. Reuse.</p>
+    <p class="lede in" style="--d:3;max-width:32em">A home for unfinished projects—so you can remember what you were building, why you paused, and <span style="color:var(--amber)">where to begin again.</span></p>
+    <div class="cue in" style="--d:4"><i></i>Scroll to go down the stairs</div>
+  </div>
+</section>
+
+<section class="chapter right" data-id="problem" data-range="0.105,0.205" aria-label="The problem">
+  <div class="veil">
+    <h2>When context fades, restarting costs more.</h2>
+    <p class="lede">The code may still be there. What fades is the reason behind it: the original goal, the choices you made, and the next step.</p>
+  </div>
+</section>
+
+<section class="chapter" data-id="losses" data-range="0.225,0.335" aria-label="What gets lost">
+  <div class="veil">
+    <h2 class="s">Three things go missing</h2>
+    <div class="losses">
+      <div><h3>Lost intent</h3><p>The files remain, but the original problem, promise, and MVP scope fade.</p></div>
+      <div><h3>Lost reasoning</h3><p>Commits show what changed—not why an approach failed, what you learned, or which blocker remains.</p></div>
+      <div><h3>Stranded value</h3><p>Useful components, schemas, research, and lessons stay buried instead of becoming a starting point for the next idea.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="chapter" data-id="landscape" data-range="0.352,0.455" aria-label="Archive bridge">
+  <div class="panel">
+    <h2 class="s">The work is not gone. <span style="color:var(--amber)">Its story is scattered.</span></h2>
+    <p class="lede">Bring the pieces back together. Recover what you built, what you learned, and where to begin.</p>
+  </div>
+</section>
+
+<section class="chapter center" data-id="descent" data-range="0.468,0.53" aria-label="Doorway and archive entrance">
+  <div style="width:100%;max-width:440px;margin:0 auto">
+    <h2 class="s" style="color:var(--dim);margin-bottom:14px">Step inside. The records are kept here.</h2>
+    <div id="authPanel" class="auth-card">
+      <span class="auth-eyebrow" id="authEyebrow">YOUR ARCHIVE AWAITS</span>
+      <h3 class="auth-heading" id="authHeading">Your work is waiting.</h3>
+      <p class="auth-sub" id="authSub">Sign in to return to your archive, or create an account to begin preserving your work.</p>
+
+      <form id="authForm" class="auth-form" onsubmit="return false;">
+        <div class="auth-field" id="emailField">
+          <label for="authEmail">Email address</label>
+          <input type="email" id="authEmail" name="email" autocomplete="email" placeholder="you@example.com" required>
+        </div>
+        <div class="auth-field" id="passwordField">
+          <label for="authPassword" id="passwordLabel">Password</label>
+          <input type="password" id="authPassword" name="password" autocomplete="current-password" placeholder="••••••••" required>
+        </div>
+        <div class="auth-actions">
+          <button type="submit" class="pill accent" id="authSubmitBtn">Sign in</button>
+          <button type="button" class="pill" id="authToggleBtn">Create account</button>
+        </div>
+        <div class="auth-links">
+          <button type="button" class="auth-link" id="authForgotBtn">Forgot password?</button>
+          <button type="button" class="auth-link" id="authBackBtn" style="display:none">Back to sign in</button>
+        </div>
+        <div id="authMsg" class="auth-msg" role="status" aria-live="polite"></div>
+      </form>
+    </div>
+  </div>
+</section>
+
+<section class="chapter center" data-id="model" data-range="0.555,0.665" aria-label="Product model">
+  <div class="panel wide">
+    <h2 class="s">Project memory becomes a decision system.</h2>
+    <p class="lede" style="margin:8px auto 0">Not another task tracker. Remember, recover, reuse.</p>
+    <div class="model">
+      <div class="box"><h3>Context Passport</h3><ul><li>Original vision vs. completed and unfinished work</li><li>Status, timeline and reason for pausing</li></ul></div>
+      <div class="box"><h3>Black Box</h3><ul><li>Last verified working state and failed approaches</li><li>Active blocker and smallest next action</li></ul></div>
+      <div class="box"><h3>Five-path triage</h3><ul><li>Continue, Restart, Change idea, Repurpose, Archive</li><li>Guided decisions, not passive status badges</li></ul></div>
+      <div class="box"><h3>Salvage Yard</h3><ul><li>UI layouts, modules, schemas and research notes</li><li>Source project kept for context</li></ul></div>
+      <div class="hub">PROJECT<br>RECORD</div>
+    </div>
+  </div>
+</section>
+
+<section class="chapter right" data-id="triage" data-range="0.682,0.785" aria-label="Revival triage">
+  <div class="panel wide" style="max-width:860px">
+    <h2 class="s">Five paths. Five different outcomes.</h2>
+    <div class="paths" role="tablist" aria-label="Revival paths" id="paths"></div>
+    <div class="trigger" id="trigger"></div>
+    <div class="pathcard" id="pathcard"></div>
+    <p class="muted" style="margin-top:14px;font-size:13px">Archive the project. Preserve the learning. Choose the next move.</p>
+  </div>
+</section>
+
+<section class="chapter center" data-id="modes" data-range="0.805,0.9" aria-label="Dashboard">
+  <div class="panel wide">
+    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between">
+      <h2 class="s">Atmospheric discovery. Practical execution.</h2>
+      <span class="tag amber">Concept UI, not a live prototype</span>
+    </div>
+    <p class="muted" style="margin:6px 0 16px;text-align:left">One project record, two modes. This room is Graveyard mode: open a dossier, then pick a path, or skip to Workbench. Zero-guilt tone, no “failed” badges.</p>
+    <div class="dossier" id="dossierA"></div>
+    <div class="flow">Enter<span>→</span>Discover<span>→</span>Inspect<span>→</span>Act</div>
+  </div>
+</section>
+
+<section class="chapter center" data-id="trust" data-range="0.925,2" aria-label="System and trust">
+  <div class="panel wide">
+    <h2 class="s">Preserve context. Keep choices transparent.</h2>
+    <p class="muted" style="margin-top:6px">Manual entry, public GitHub URL or files, normalized into a Context Passport and stored locally in IndexedDB.</p>
+    <div class="cols trust">
+      <div class="box"><h3>Context Passport</h3><ul>
+        <li><b>Vision vs. reality.</b> Goal, done and remaining.</li>
+        <li><b>Stop-state.</b> Blocker, pause cause and file.</li>
+        <li><b>Failed approaches.</b> Rejected tries and next step.</li>
+        <li><b>Provenance.</b> Repo fact vs. human note.</li></ul></div>
+      <div class="box"><h3>Context readiness</h3>
+        <div class="score" id="score">0</div>
+        <div class="muted" style="font-size:12.5px;margin-top:4px">Rule-based, 0 to 100. Measures completeness, not odds of success.</div>
+        <div class="slider"><label for="s1">Blocker clarity · 30%</label><output id="o1">70</output><input id="s1" type="range" min="0" max="100" value="70"></div>
+        <div class="slider"><label for="s2">Next-step specificity · 30%</label><output id="o2">60</output><input id="s2" type="range" min="0" max="100" value="60"></div>
+        <div class="slider"><label for="s3">Asset tagging · 20%</label><output id="o3">40</output><input id="s3" type="range" min="0" max="100" value="40"></div>
+        <div class="slider"><label for="s4">State freshness · 20%</label><output id="o4">80</output><input id="s4" type="range" min="0" max="100" value="80"></div></div>
+      <div class="box"><h3>First release</h3><ul>
+        <li>Zero-backend local workflow</li><li>All five revival path artifacts</li><li>Preloaded offline demo data</li></ul>
+        <h3 style="margin-top:14px;color:var(--hot)">Honest boundaries</h3><ul>
+        <li>Git shows code, not “why”</li><li>JSON backup, no cloud sync</li><li>Transparent rules over AI</li></ul></div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;align-items:center;justify-content:center">
+      <button class="pill accent" id="wbBtn2">Open the Workbench</button>
+      <button class="pill" id="topBtn">Back to the entrance</button>
+    </div>
+    <p class="muted" style="font-size:13px;margin-top:10px">The core experience works without any external API or AI service.</p>
+  </div>
+</section>
+</main>
+
+<div id="workbench" role="dialog" aria-modal="true" aria-label="Workbench mode">
+  <div class="wb-head">
+    <h2>Workbench</h2><span class="tag">High-density triage</span>
+    <div class="chips" id="chips"></div>
+    <button class="pill" id="wbClose">Back to Graveyard</button>
+  </div>
+  <div class="wb-grid">
+    <div>
+      <div class="plist" id="plist"></div>
+      <div class="roulette"><b>Weekend Revival Roulette</b><br><span class="muted">Pick a project by the free time you have.</span>
+        <select id="free" aria-label="Free time"><option value="2">About 2 hours</option><option value="5">Half a day</option><option value="16">A full weekend</option></select>
+        <button class="pill" id="spin" style="margin-top:8px">Pick for me</button><div class="pick" id="pick"></div></div>
+    </div>
+    <div class="panel wide" style="max-width:none"><div class="dossier" id="dossierB"></div></div>
+  </div>
+</div>
+<div id="toast" role="status"></div>
+
+<script src="app.js" defer></script>
+</body>
+</html>

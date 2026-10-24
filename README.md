@@ -52,7 +52,25 @@ The first phase establishes the opening narrative sequence up to the archive doo
 ## Project Structure
 
 ```text
-├── index (1).html    # Core application (markup, styling, scroll scrubbing logic)
+├── index(1).html     # Semantic markup and structure
+├── styles.css        # Visual system, cinematic shaders, and responsive rules
+├── app.js            # Video engine, scroll sync, chapter rail, and demo state
 ├── journey.mp4       # Archival camera footage mapped to scroll
 └── README.md         # Project documentation and status
 ```
+
+---
+
+## Running Locally
+
+Because the application uses browser media and module/asset loading, serve the project root via any local HTTP server:
+
+```bash
+# Using Python
+python -m http.server 8000
+
+# Using Node.js
+npx serve .
+```
+
+Navigate to `http://localhost:8000/index(1).html` in any modern web browser.
